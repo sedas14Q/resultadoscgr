@@ -1,0 +1,744 @@
+﻿"""
+app.py - Captura manual de actas desde formulario y visualizacion en dashboard.
+"""
+
+from __future__ import annotations
+
+import os
+import math
+import smtplib
+from time import perf_counter
+from email.message import EmailMessage
+
+from flask import Flask, Response, jsonify, render_template, request
+
+import db
+from dependencias import normalizar_dependencia
+
+app = Flask(__name__)
+app.config["JSON_AS_ASCII"] = False
+app.json.ensure_ascii = False
+
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1548")
+
+
+def _safe_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    txt = str(value).replace("\\", " ").replace('"', "")
+    return " ".join(txt.split()).strip()
+
+
+def _to_int(value, default=0):
+    try:
+        if value is None or value == "":
+            return int(default)
+        return int(float(value))
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def _to_float(value, default=0.0):
+    try:
+        if value is None or value == "":
+            return float(default)
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def normalizar_candidatos(data):
+    if not isinstance(data, list):
+        return []
+
+    candidatos = []
+    for c in data:
+        item = c or {}
+        planilla = _safe_text(item.get("planilla")) or "Sin planilla"
+
+        # Formato nuevo: una planilla puede traer varios candidatos.
+        lista = item.get("candidatos")
+        if isinstance(lista, list) and lista:
+            votos_planilla = _to_int(item.get("votos"), 0)
+            porcentaje_planilla = _to_float(item.get("porcentaje"), 0)
+            for idx, nombre in enumerate(lista):
+                cand_name = _safe_text(nombre) or "Sin nombre"
+                candidatos.append(
+                    {
+                        "planilla": planilla,
+                        "expresion_politica": _safe_text(item.get("expresion_politica")),
+                        "candidato": cand_name,
+                        "votos": votos_planilla if idx == 0 else 0,
+                        "porcentaje": porcentaje_planilla if idx == 0 else 0.0,
+                    }
+                )
+            continue
+
+        candidatos.append(
+            {
+                "planilla": planilla,
+                "expresion_politica": _safe_text(item.get("expresion_politica")),
+                "candidato": _safe_text(item.get("candidato")) or "Sin nombre",
+                "votos": _to_int(item.get("votos"), 0),
+                "porcentaje": _to_float(item.get("porcentaje"), 0),
+            }
+        )
+
+    return sorted(candidatos, key=lambda x: x["votos"], reverse=True)
+
+
+def normalizar_resumen(resumen):
+    r = resumen if isinstance(resumen, dict) else {}
+    return {
+        "votos_totales": _to_int(r.get("votos_totales"), 0),
+        "votos_nulos": _to_int(r.get("votos_nulos"), 0),
+        "abstenciones": _to_int(r.get("abstenciones"), 0),
+        "boletas_no_usadas": _to_int(r.get("boletas_no_usadas"), 0),
+        "delegados_totales": _to_int(r.get("delegados_totales"), 0),
+        # siempre se recalcula autom?ticamente
+        "total_padron_sindicato": _to_int(r.get("total_padron_sindicato"), 0),
+    }
+
+
+def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[dict]:
+    grupos: dict[str, dict] = {}
+
+    for c in candidatos or []:
+        planilla = _safe_text(c.get("planilla")) or "Sin planilla"
+        item = grupos.setdefault(
+            planilla,
+            {
+                "planilla": planilla,
+                "expresion_politica": _safe_text(c.get("expresion_politica")) or "",
+                "candidatos": [],
+                "votos": 0,
+                "porcentaje": 0.0,
+            },
+        )
+
+        nombre_candidato = _safe_text(c.get("candidato")) or "Sin nombre"
+        if nombre_candidato not in item["candidatos"]:
+            item["candidatos"].append(nombre_candidato)
+
+        if not item["expresion_politica"] and _safe_text(c.get("expresion_politica")):
+            item["expresion_politica"] = _safe_text(c.get("expresion_politica")) or ""
+
+        item["votos"] += max(0, _to_int(c.get("votos"), 0))
+
+    total = _to_int(votos_totales, 0)
+    if total <= 0:
+        total = sum(g["votos"] for g in grupos.values())
+
+    out = list(grupos.values())
+    for g in out:
+        g["porcentaje"] = round((g["votos"] / total) * 100, 2) if total > 0 else 0.0
+
+    out.sort(key=lambda x: x["votos"], reverse=True)
+    return out
+
+
+def _admin_autorizado(payload: dict) -> bool:
+    usuario = _safe_text((payload or {}).get("usuario")) or ""
+    contrasena = str((payload or {}).get("contrasena") or "")
+    return usuario == ADMIN_USER and contrasena == ADMIN_PASSWORD
+
+
+def validar_acta(candidatos: list, resumen: dict) -> str | None:
+    if not candidatos:
+        return "Debes capturar minimo 1 candidato completo."
+
+    for c in candidatos:
+        if c.get("planilla") == "Sin planilla" or c.get("candidato") == "Sin nombre":
+            return "Cada candidato debe tener planilla y nombre."
+        if _to_int(c.get("votos"), 0) < 0:
+            return "Los votos no pueden ser negativos."
+
+    planillas = agrupar_planillas(candidatos)
+    if not planillas or any(p.get("votos", 0) <= 0 for p in planillas):
+        return "Cada planilla debe tener votos mayores a 0."
+
+    for campo in ("votos_nulos", "abstenciones", "boletas_no_usadas"):
+        if _to_int(resumen.get(campo), 0) < 0:
+            return "Los valores del resumen no pueden ser negativos."
+
+    return None
+
+def recalcular_padron(resumen: dict) -> tuple[dict, bool]:
+    """Calcula punto 11 como suma de puntos 7,8,9,10."""
+    r = normalizar_resumen(resumen)
+    total_calculado = (
+        r["votos_totales"]
+        + r["votos_nulos"]
+        + r["abstenciones"]
+        + r["boletas_no_usadas"]
+    )
+    era_distinto = r.get("total_padron_sindicato", 0) != total_calculado
+    r["total_padron_sindicato"] = total_calculado
+    return r, era_distinto
+
+
+def _pdf_escape(texto: str) -> str:
+    return (texto or "").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _as_latin1(texto: str) -> str:
+    return (texto or "").encode("latin-1", errors="replace").decode("latin-1")
+
+
+def _pie_wedge_points(cx: float, cy: float, r: float, a0: float, a1: float, steps: int = 18):
+    pts = [(cx, cy)]
+    for i in range(steps + 1):
+        t = a0 + (a1 - a0) * (i / steps)
+        pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
+    return pts
+
+
+def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: list[tuple[float, float, float]]) -> list[str]:
+    total = sum(max(0.0, float(v)) for v in values)
+    if total <= 0:
+        return []
+
+    cmds: list[str] = []
+    ang = -math.pi / 2
+    for idx, v in enumerate(values):
+        v = max(0.0, float(v))
+        if v <= 0:
+            continue
+        span = (v / total) * (2 * math.pi)
+        next_ang = ang + span
+        rr, gg, bb = colors[idx % len(colors)]
+        pts = _pie_wedge_points(cx, cy, r, ang, next_ang)
+        cmds.append(f"q {rr:.3f} {gg:.3f} {bb:.3f} rg")
+        x0, y0 = pts[0]
+        cmds.append(f"{x0:.2f} {y0:.2f} m")
+        for x, y in pts[1:]:
+            cmds.append(f"{x:.2f} {y:.2f} l")
+        cmds.append("h f Q")
+        ang = next_ang
+
+        # Contorno con pol?gono circular para compatibilidad amplia PDF
+    ring_pts = _pie_wedge_points(cx, cy, r, 0, 2 * math.pi, 48)[1:]
+    if ring_pts:
+        cmds.append("q 0.35 0.45 0.60 RG 0.8 w")
+        x0, y0 = ring_pts[0]
+        cmds.append(f"{x0:.2f} {y0:.2f} m")
+        for x, y in ring_pts[1:]:
+            cmds.append(f"{x:.2f} {y:.2f} l")
+        cmds.append("h S Q")
+
+    return cmds
+
+
+def _armar_pdf_acta(acta: dict) -> bytes:
+    candidatos = normalizar_candidatos((acta or {}).get("candidatos"))
+    resumen = normalizar_resumen((acta or {}).get("resumen"))
+    planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
+    max_votos = max((p.get("votos", 0) for p in planillas), default=0)
+
+    if resumen.get("votos_totales", 0) <= 0:
+        resumen["votos_totales"] = sum(p.get("votos", 0) for p in planillas)
+    resumen, _ = recalcular_padron(resumen)
+
+    def t(x: float, y: float, text: str, font: str = "F1", size: int = 11) -> str:
+        txt = _pdf_escape(_as_latin1(text))
+        return f"BT /{font} {size} Tf 1 0 0 1 {x:.2f} {y:.2f} Tm ({txt}) Tj ET"
+
+    def t_right(x_right: float, y: float, text: str, font: str = "F1", size: int = 11) -> str:
+        txt = str(text or "")
+        ancho_aprox = max(0, len(txt)) * (size * 0.52)
+        return t(x_right - ancho_aprox, y, txt, font, size)
+
+    def money(v) -> str:
+        return str(_to_int(v, 0))
+
+    contenido = []
+
+    # Header
+    contenido.append("q 0.78 0.88 0.94 rg 0 770 595 72 re f Q")
+    contenido.append(t(42, 812, "ACTA ELECTORAL", "F2", 18))
+    contenido.append(t(42, 790, "STUNAM - CGR XXII", "F1", 12))
+    contenido.append(t(455, 812, f"ID #{acta.get('id', 'N/D')}", "F2", 12))
+
+    # Datos generales
+    contenido.append("q 0.99 0.995 1 rg 36 700 523 58 re f Q")
+    contenido.append("q 0.78 0.86 0.93 RG 1 w 36 700 523 58 re S Q")
+    contenido.append(t(48, 736, f"Dependencia: {(acta.get('numero') or 'N/D')} - {(acta.get('nombre') or 'N/D')}", "F2", 12))
+    contenido.append(t(48, 714, f"Fecha: {(acta.get('fecha') or 'Sin fecha')}   Capturista: {(acta.get('capturista') or 'N/D')}", "F1", 10))
+
+    # Tabla por planilla
+    y_top = 680
+    contenido.append(t(36, y_top, "PLANILLAS", "F2", 13))
+    head_top = y_top - 16
+    head_h = 24
+    head_bottom = head_top - head_h
+
+    contenido.append(f"q 0.93 0.97 0.99 rg 36 {head_bottom:.2f} 523 {head_h} re f Q")
+    contenido.append(f"q 0.80 0.88 0.94 RG 0.8 w 36 {head_bottom:.2f} 523 {head_h} re S Q")
+
+    # Columnas: Planilla | Expresion politica | Candidatos | Votos | %
+    x_plan = 44
+    x_expr = 150
+    x_cands = 320
+    x_votos_r = 500
+    x_pct_r = 548
+
+    contenido.append(t(x_plan, head_bottom + 8, "Planilla", "F2", 10))
+    contenido.append(t(x_expr, head_bottom + 8, "EXPRESION POLITICA", "F2", 10))
+    contenido.append(t(x_cands, head_bottom + 8, "Candidatos", "F2", 10))
+    contenido.append(t(458, head_bottom + 8, "Votos", "F2", 10))
+    contenido.append(t(523, head_bottom + 8, "%", "F2", 10))
+
+    # Cursor vertical: parte superior de la primera fila.
+    y = head_bottom - 6
+    max_rows = 9
+
+    for i, pz in enumerate(planillas[:max_rows], start=1):
+        lista_cands = [str(n).strip() for n in (pz.get("candidatos", []) or []) if str(n).strip()]
+        if not lista_cands:
+            lista_cands = ["N/D"]
+        # Mostrar todos los candidatos (uno por linea) para mejor lectura.
+        cand_lines = [c[:26] for c in lista_cands]
+        line_h = 12
+        row_h = max(34, (line_h * len(cand_lines)) + 14)
+        row_top = y
+        row_bottom = row_top - row_h
+
+        es_ganador = pz.get("votos", 0) == max_votos and max_votos > 0
+
+        if i % 2 == 0:
+            contenido.append(f"q 0.975 0.985 0.995 rg 36 {row_bottom:.2f} 523 {row_h} re f Q")
+
+        if es_ganador:
+            contenido.append(f"q 0.90 0.98 0.93 rg 36 {row_bottom:.2f} 523 {row_h} re f Q")
+            contenido.append("q 0.66 0.86 0.72 RG 0.7 w 36 {:.2f} 523 {:.2f} re S Q".format(row_bottom, row_h))
+        else:
+            contenido.append("q 0.86 0.91 0.95 RG 0.5 w 36 {:.2f} 523 {:.2f} re S Q".format(row_bottom, row_h))
+
+        nombre_plan = str(pz.get("planilla", "N/D"))[:14]
+        expr = str(pz.get("expresion_politica", "") or "")[:24]
+        votos = money(pz.get("votos", 0))
+        pct = f"{_to_float(pz.get('porcentaje', 0), 0):.2f}%"
+
+        font = "F2" if es_ganador else "F1"
+        text_y = row_top - 18
+        contenido.append(t(x_plan, text_y, nombre_plan, font, 10))
+        contenido.append(t(x_expr, text_y, expr, font, 10))
+        for idx_line, line in enumerate(cand_lines):
+            contenido.append(t(x_cands, text_y - (idx_line * line_h), line, font, 10))
+
+        # Centrar votos/% respecto al bloque de candidatos multi-linea.
+        y_center = row_bottom + (row_h / 2) - 3
+        contenido.append(t_right(x_votos_r, y_center, votos, font, 10))
+        contenido.append(t_right(x_pct_r, y_center, pct, font, 10))
+
+        y = row_bottom - 2
+
+    if len(planillas) > max_rows:
+        contenido.append(t(44, y + 2, f"... {len(planillas) - max_rows} planilla(s) mas", "F1", 9))
+        y -= 18
+
+    # Bloque inferior: resumen y grafica (sin encimar)
+    section_top = y - 14
+    left_x = 36
+    left_w = 275
+    right_x = 324
+    right_w = 235
+    section_h = 170
+    section_bottom = section_top - section_h
+
+    # Resumen izquierdo
+    contenido.append(t(left_x, section_top + 8, "RESUMEN", "F2", 12))
+    contenido.append(f"q 0.99 0.995 1 rg {left_x} {section_bottom:.2f} {left_w} {section_h-6} re f Q")
+    contenido.append(f"q 0.78 0.86 0.93 RG 1 w {left_x} {section_bottom:.2f} {left_w} {section_h-6} re S Q")
+
+    resumen_lineas = [
+        ("Votos totales", resumen.get("votos_totales", 0)),
+        ("Votos nulos", resumen.get("votos_nulos", 0)),
+        ("Abstenciones", resumen.get("abstenciones", 0)),
+        ("Boletas no usadas", resumen.get("boletas_no_usadas", 0)),
+        ("Delegados totales", resumen.get("delegados_totales", 0)),
+        ("Padron sindicato", resumen.get("total_padron_sindicato", 0)),
+    ]
+    ry = section_top - 20
+    for label, value in resumen_lineas:
+        if label == "Delegados totales":
+            contenido.append("0.72 0.12 0.12 rg")
+            contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
+            contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F2", 10))
+            contenido.append("0 0 0 rg")
+        else:
+            contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
+            contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F1", 10))
+        ry -= 24
+
+    # Grafica derecha
+    contenido.append(t(right_x, section_top + 8, "GRAFICA DE PASTEL (VOTOS POR PLANILLA)", "F2", 9))
+    contenido.append(f"q 0.99 0.995 1 rg {right_x} {section_bottom:.2f} {right_w} {section_h-6} re f Q")
+    contenido.append(f"q 0.78 0.86 0.93 RG 1 w {right_x} {section_bottom:.2f} {right_w} {section_h-6} re S Q")
+
+    pie_values = [max(0, _to_int(pz.get("votos"), 0)) for pz in planillas[:5]]
+    pie_colors = [
+        (0.10, 0.64, 0.78),
+        (0.18, 0.74, 0.39),
+        (0.98, 0.63, 0.12),
+        (0.93, 0.36, 0.34),
+        (0.56, 0.44, 0.84),
+    ]
+
+    pie_cx = right_x + 65
+    pie_cy = section_bottom + 88
+    pie_r = 44
+    contenido.extend(_pdf_draw_pie(pie_cx, pie_cy, pie_r, pie_values, pie_colors))
+
+    ley_y = section_top - 18
+    for i, pz in enumerate(planillas[:5]):
+        rr, gg, bb = pie_colors[i % len(pie_colors)]
+        votos_p = _to_int(pz.get("votos"), 0)
+        pct_p = _to_float(pz.get("porcentaje"), 0)
+        nombre_p = str(pz.get("planilla", "N/D"))[:12]
+
+        bx = right_x + 120
+        contenido.append(f"q {rr:.3f} {gg:.3f} {bb:.3f} rg {bx} {ley_y - 2:.2f} 8 8 re f Q")
+        contenido.append("q 0.35 0.45 0.60 RG 0.4 w {} {:.2f} 8 8 re S Q".format(bx, ley_y - 2))
+        contenido.append(t(bx + 12, ley_y, f"{nombre_p}: {votos_p} ({pct_p:.1f}%)", "F1", 8))
+        ley_y -= 12
+
+    # Pie de pagina
+    contenido.append(t(36, 24, "Documento generado automaticamente por el sistema de captura.", "F1", 9))
+
+    stream = "\n".join(contenido).encode("latin-1", errors="replace")
+
+    objs = []
+    objs.append(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    objs.append(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    objs.append(
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n"
+    )
+    objs.append(
+        b"4 0 obj\n<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream\nendobj\n"
+    )
+    objs.append(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+    objs.append(b"6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n")
+
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for o in objs:
+        offsets.append(len(pdf))
+        pdf.extend(o)
+    xref_pos = len(pdf)
+    pdf.extend(f"xref\n0 {len(objs)+1}\n".encode("ascii"))
+    pdf.extend(b"0000000000 65535 f \n")
+    for off in offsets[1:]:
+        pdf.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+    pdf.extend(
+        (
+            f"trailer\n<< /Size {len(objs)+1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+        ).encode("ascii")
+    )
+    return bytes(pdf)
+
+
+def _enviar_pdf_correo(destinatario: str, acta: dict, pdf_bytes: bytes) -> tuple[bool, str]:
+    host = os.getenv("SMTP_HOST", "").strip()
+    try:
+        puerto = int(os.getenv("SMTP_PORT", "587"))
+    except ValueError:
+        return False, "SMTP_PORT debe ser numerico."
+    usuario = os.getenv("SMTP_USER", "").strip()
+    contrasena = os.getenv("SMTP_PASSWORD", "")
+    remitente = os.getenv("SMTP_FROM", usuario).strip()
+    usar_tls = os.getenv("SMTP_TLS", "1").strip() not in {"0", "false", "False"}
+
+    if not host or not remitente:
+        return False, "SMTP no configurado. Define SMTP_HOST y SMTP_FROM."
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Acta #{acta.get('numero', 'N/D')} - {acta.get('nombre', 'Dependencia')}"
+    msg["From"] = remitente
+    msg["To"] = destinatario
+    msg.set_content("Se adjunta PDF del acta capturada.")
+    filename = f"acta_{acta.get('id', 'sin_id')}.pdf"
+    msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf", filename=filename)
+
+    try:
+        with smtplib.SMTP(host, puerto, timeout=20) as server:
+            if usar_tls:
+                server.starttls()
+            if usuario:
+                server.login(usuario, contrasena)
+            server.send_message(msg)
+    except Exception as exc:
+        return False, f"No se pudo enviar correo: {exc}"
+    return True, "Correo enviado"
+
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = os.getenv("CORS_ORIGIN", "*")
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+    return response
+
+
+def _armar_resultados_dashboard() -> list[dict]:
+    resultados = []
+    for acta in db.obtener_todas():
+        candidatos = normalizar_candidatos(acta.get("candidatos"))
+        resumen = normalizar_resumen(acta.get("resumen"))
+        planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
+
+        ganador = None
+        ganadores = []
+        empate = False
+        if planillas:
+            max_votos = max(p.get("votos", 0) for p in planillas)
+            ganadores = [p for p in planillas if p.get("votos", 0) == max_votos]
+            ganador = ganadores[0] if ganadores else None
+            empate = len(ganadores) > 1
+
+        resultados.append(
+            {
+                "id": acta.get("id"),
+                "numero": acta.get("numero"),
+                "nombre": acta.get("nombre"),
+                "fecha": acta.get("fecha"),
+                "capturista": acta.get("capturista"),
+                "candidatos": candidatos,
+                "planillas": planillas,
+                "ganador": ganador,
+                "ganadores": ganadores,
+                "empate": empate,
+                "resumen": resumen,
+            }
+        )
+    return resultados
+
+
+@app.route("/")
+def dashboard():
+    resultados = _armar_resultados_dashboard()
+    return render_template("index.html", resultados=resultados)
+
+
+@app.route("/api/actas", methods=["GET"])
+def listar_actas():
+    return jsonify({"status": "ok", "data": _armar_resultados_dashboard()})
+
+
+@app.route("/api/actas", methods=["POST", "OPTIONS"])
+def crear_acta_manual():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    inicio = perf_counter()
+    payload = request.get_json(silent=True) or {}
+
+    numero_raw = payload.get("numero")
+    nombre_raw = payload.get("nombre")
+    fecha = _safe_text(payload.get("fecha"))
+    capturista = _safe_text(payload.get("capturista"))
+
+    numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
+    numero = _safe_text(numero)
+    nombre = _safe_text(nombre)
+
+    if not numero and not nombre:
+        return jsonify({"status": "error", "mensaje": "Debes capturar numero o nombre de dependencia"}), 400
+
+    if not numero or not nombre:
+        return jsonify({
+            "status": "error",
+            "mensaje": "No se pudo encontrar coincidencia entre numero y nombre en la base de dependencias",
+        }), 400
+
+    # Priorizar formato nuevo: planillas con candidatos ligados a cada planilla.
+    candidatos_src = payload.get("planillas")
+    if not isinstance(candidatos_src, list):
+        candidatos_src = payload.get("candidatos")
+
+    resumen_src = payload.get("resumen")
+    if not isinstance(resumen_src, dict):
+        resumen_src = payload.get("resumen datos")
+
+    candidatos = normalizar_candidatos(candidatos_src)
+    resumen = normalizar_resumen(resumen_src)
+    error_validacion = validar_acta(candidatos, resumen)
+    if error_validacion:
+        return jsonify({"status": "error", "mensaje": error_validacion}), 400
+
+    total = resumen.get("votos_totales", 0)
+    if total <= 0:
+        total = sum(c["votos"] for c in candidatos)
+        resumen["votos_totales"] = total
+
+    if total > 0:
+        for c in candidatos:
+            if not c.get("porcentaje"):
+                c["porcentaje"] = round((c["votos"] / total) * 100, 2)
+
+    resumen, padron_ajustado = recalcular_padron(resumen)
+
+    save_id = db.guardar_manual(
+        numero=numero,
+        nombre=nombre,
+        fecha=fecha,
+        candidatos=candidatos,
+        resumen=resumen,
+        fuente="formulario_online",
+        capturista=capturista,
+    )
+
+    fin = perf_counter()
+    data = {
+        "id": save_id,
+        "numero": numero,
+        "nombre": nombre,
+        "fecha": fecha,
+        "capturista": capturista,
+        "candidatos": candidatos,
+        "planillas": agrupar_planillas(candidatos, resumen.get("votos_totales", 0)),
+        "resumen": resumen,
+        "processing_ms": int((fin - inicio) * 1000),
+        "processing_s": round(fin - inicio, 3),
+    }
+    if padron_ajustado:
+        data["aviso"] = "El total padron sindicato fue recalculado como suma de puntos 7+8+9+10."
+    return jsonify({"status": "ok", "data": data})
+
+
+@app.route("/api/actas/estado", methods=["GET"])
+def estado_actas():
+    return jsonify({"status": "ok", "data": db.obtener_estado()})
+
+
+@app.route("/api/actas/<int:acta_id>/pdf", methods=["GET"])
+def descargar_pdf_acta(acta_id: int):
+    acta = db.obtener_por_id(acta_id)
+    if not acta:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    pdf = _armar_pdf_acta(acta)
+    nombre = f"acta_{acta_id}.pdf"
+    return Response(
+        pdf,
+        headers={
+            "Content-Type": "application/pdf",
+            "Content-Disposition": f'attachment; filename="{nombre}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.route("/api/actas/<int:acta_id>/correo", methods=["POST", "OPTIONS"])
+def enviar_pdf_acta_correo(acta_id: int):
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    payload = request.get_json(silent=True) or {}
+    correo = _safe_text(payload.get("correo"))
+    if not correo or "@" not in correo:
+        return jsonify({"status": "error", "mensaje": "Correo invalido"}), 400
+
+    acta = db.obtener_por_id(acta_id)
+    if not acta:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    pdf = _armar_pdf_acta(acta)
+    ok, mensaje = _enviar_pdf_correo(correo, acta, pdf)
+    if not ok:
+        return jsonify({"status": "error", "mensaje": mensaje}), 500
+    return jsonify({"status": "ok", "mensaje": mensaje})
+
+
+
+
+@app.route("/api/actas/<int:acta_id>", methods=["PUT", "OPTIONS"])
+def actualizar_acta_manual(acta_id: int):
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    payload = request.get_json(silent=True) or {}
+    if not _admin_autorizado(payload):
+        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
+
+    numero_raw = payload.get("numero")
+    nombre_raw = payload.get("nombre")
+    fecha = _safe_text(payload.get("fecha"))
+    capturista = _safe_text(payload.get("capturista"))
+
+    numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
+    numero = _safe_text(numero)
+    nombre = _safe_text(nombre)
+
+    if not numero or not nombre:
+        return jsonify({"status": "error", "mensaje": "Numero o nombre de dependencia invalido"}), 400
+
+    acta_actual = db.obtener_por_id(acta_id)
+    if not acta_actual:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    if "planillas" in payload and isinstance(payload.get("planillas"), list):
+        candidatos = normalizar_candidatos(payload.get("planillas"))
+    elif "candidatos" in payload:
+        candidatos = normalizar_candidatos(payload.get("candidatos"))
+    else:
+        candidatos = normalizar_candidatos(acta_actual.get("candidatos"))
+
+    if "resumen" in payload:
+        resumen = normalizar_resumen(payload.get("resumen"))
+    else:
+        resumen = normalizar_resumen(acta_actual.get("resumen"))
+
+    total = resumen.get("votos_totales", 0)
+    if total <= 0:
+        total = sum(c["votos"] for c in candidatos)
+        resumen["votos_totales"] = total
+    if total > 0:
+        for c in candidatos:
+            c["porcentaje"] = round((c["votos"] / total) * 100, 2)
+
+    error_validacion = validar_acta(candidatos, resumen)
+    if error_validacion:
+        return jsonify({"status": "error", "mensaje": error_validacion}), 400
+
+    resumen, _ = recalcular_padron(resumen)
+
+    ok = db.actualizar_acta(acta_id, numero, nombre, fecha, candidatos, resumen)
+    if not ok:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    return jsonify({"status": "ok", "mensaje": "Acta actualizada"})
+
+
+@app.route("/api/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
+def eliminar_acta_manual(acta_id: int):
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    payload = request.get_json(silent=True) or {}
+    if not _admin_autorizado(payload):
+        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
+
+    ok = db.eliminar_acta(acta_id)
+    if not ok:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    return jsonify({"status": "ok", "mensaje": "Acta eliminada"})
+
+
+@app.route("/upload", methods=["POST"])
+def upload_deprecated():
+    return jsonify({"status": "error", "mensaje": "OCR desactivado. Usa el formulario manual."}), 410
+
+
+if __name__ == "__main__":
+    app.run(debug=os.getenv("FLASK_DEBUG", "0") == "1")
+
+
+
+
+
+
+
+

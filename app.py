@@ -101,7 +101,7 @@ def normalizar_resumen(resumen):
         "abstenciones": _to_int(r.get("abstenciones"), 0),
         "boletas_no_usadas": _to_int(r.get("boletas_no_usadas"), 0),
         "delegados_totales": _to_int(r.get("delegados_totales"), 0),
-        # siempre se recalcula autom?ticamente
+        # siempre se recalcula automaticamente
         "total_padron_sindicato": _to_int(r.get("total_padron_sindicato"), 0),
     }
 
@@ -286,7 +286,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(f"q 0.93 0.97 0.99 rg 36 {head_bottom:.2f} 523 {head_h} re f Q")
     contenido.append(f"q 0.80 0.88 0.94 RG 0.8 w 36 {head_bottom:.2f} 523 {head_h} re S Q")
 
-    # Columnas: Planilla | Expresion politica | Candidatos | Votos | % | DG
+    # Columnas: Planilla | Expresion politica | Candidatos | Votos | % | Delegados ganados
     x_plan = 44
     x_expr = 150
     x_cands = 320
@@ -299,7 +299,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(x_cands, head_bottom + 8, "Candidatos", "F2", 10))
     contenido.append(t(444, head_bottom + 8, "Votos", "F2", 10))
     contenido.append(t(503, head_bottom + 8, "%", "F2", 10))
-    contenido.append(t(536, head_bottom + 8, "DG", "F2", 10))
+    contenido.append(t(536, head_bottom + 8, "Delegados Ganados", "F2", 10))
 
     # Cursor vertical: parte superior de la primera fila.
     y = head_bottom - 8

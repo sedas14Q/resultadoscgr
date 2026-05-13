@@ -97,22 +97,22 @@
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Expresion politica:</span><br><br>{% if r.empate %}{% for g in r.ganadores %}{{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}{% endif %}</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">3- Votos ganador:</span><br><br>{{ r.ganador.votos | default(0, true) if r.ganador else 0 }}</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">4- Porcentaje ganador:</span><br><br>{{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">5- Delegados ganados:</span><br><br>{{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}</div>
+                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">5- Delegados ganados:</span><br><br><span class="delegados-ganados-red">{{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}</span></div>
                 {% else %}
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">1- Planilla:</span><br>N/D</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Candidato:</span><br>N/D</div>
                 <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">3- Votos:</span><br>0</div>
                 <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">4- Porcentaje:</span><br>0%</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">5- Delegados ganados:</span><br>0</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">5- Delegados ganados:</span><br><br><span class="delegados-ganados-red">0</span></div>
                 {% endif %}
             </div>
 
             <div class="votos-lista">
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">5- Votos totales:</span>{{ r.resumen.votos_totales | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">6- Votos nulos:</span>{{ r.resumen.votos_nulos | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">7- Abstenciones:</span>{{ r.resumen.abstenciones | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">8- Boletas no usadas:</span>{{ r.resumen.boletas_no_usadas | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">9- Total padron sindicato:</span>{{ r.resumen.total_padron_sindicato | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">6- Votos totales:</span><br><br>{{ r.resumen.votos_totales | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">7- Votos nulos:</span><br><br>{{ r.resumen.votos_nulos | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">8- Abstenciones:</span><br><br>{{ r.resumen.abstenciones | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">9- Boletas no usadas:</span><br><br>{{ r.resumen.boletas_no_usadas | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">10- Total padron sindicato:</span><br><br>{{ r.resumen.total_padron_sindicato | default(0, true) }}</div>
             </div>
         </section>
 
@@ -124,7 +124,7 @@
             </div>
             {% if r.planillas %}
             <table class="candidates-table">
-                <thead><tr><th>Planilla</th><th>EXPRESION POLITICA</th><th>Candidatos</th><th>Votos</th><th>%</th><th>Delegados ganados</th></tr></thead>
+                <thead><tr><th>Planilla</th><th>EXPRESION POLITICA</th><th>Candidatos</th><th>Votos</th><th>%</th></tr></thead>
                 <tbody>
                 {% for p in r.planillas %}
                 <tr class="{% if r.ganador and p.planilla == r.ganador.planilla %}row-win{% elif (p.porcentaje if p.porcentaje is not none else 0) < 20 %}row-low{% else %}row-normal{% endif %}">
@@ -132,8 +132,7 @@
                     <td>{{ p.expresion_politica or 'N/D' }}</td>
                     <td>{{ p.candidatos | join(', ') }}</td>
                     <td>{{ p.votos }}</td>
-                    <td>{{ p.porcentaje if p.porcentaje is not none else 0 }}%</td>
-                    <td>{{ p.delegados_ganados | default(0, true) }}</td>
+                    <td>{{ p.porcentaje if p.porcentaje is not none else 0 }}% <span class="delegados-inline-red">DG: {{ p.delegados_ganados | default(0, true) }}</span></td>
                 </tr>
                 {% endfor %}
                 </tbody>

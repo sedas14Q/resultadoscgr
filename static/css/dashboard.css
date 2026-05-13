@@ -229,7 +229,7 @@
         .card-body {
             padding: 18px 20px 20px;
             display: grid;
-            grid-template-columns: minmax(0, 60%) minmax(0, 40%);
+            grid-template-columns: minmax(0, 50%) minmax(0, 50%);
             gap: 22px;
             align-items: start;
 }
@@ -420,26 +420,33 @@
 
         .candidates-table th:nth-child(1),
         .candidates-table td:nth-child(1) {
-            width: 30%;
+            width: 24%;
 }
 
         .candidates-table th:nth-child(2),
         .candidates-table td:nth-child(2) {
-            width: 32%;
+            width: 30%;
 }
 
         .candidates-table th:nth-child(3),
         .candidates-table td:nth-child(3) {
             text-align: right;
-            width: 14%;
+            width: 24%;
 }
 
         .candidates-table th:nth-child(4),
         .candidates-table td:nth-child(4) {
             text-align: right;
-            width: 24%;
+            width: 10%;
             white-space: nowrap;
 }
+
+        .candidates-table th:nth-child(5),
+        .candidates-table td:nth-child(5) {
+            text-align: right;
+            width: 12%;
+            white-space: nowrap;
+        }
 
         .candidates-table td {
             padding: 12px;
@@ -754,5 +761,7 @@
 }
 
 .delegados-total-cell { color: #b42318 !important; font-weight: 800; }
+.delegados-ganados-red { color: #b42318; font-weight: 800; }
+.delegados-inline-red { color: #b42318; font-weight: 800; margin-left: 8px; }
 
 

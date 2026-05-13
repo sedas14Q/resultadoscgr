@@ -360,7 +360,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     left_w = 275
     right_x = 324
     right_w = 235
-    section_h = 170
+    section_h = 208
     section_bottom = section_top - section_h
 
     # Resumen izquierdo
@@ -386,7 +386,28 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         else:
             contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
             contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F1", 10))
-        ry -= 24
+        ry -= 20
+
+    # Seccion explicita de delegados: total en disputa + ganados por planilla
+    delg_top = section_bottom + 8
+    delg_h = 68
+    contenido.append(f"q 0.99 0.97 0.97 rg {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re f Q")
+    contenido.append(f"q 0.92 0.72 0.72 RG 0.8 w {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re S Q")
+    contenido.append(t(left_x + 14, delg_top + delg_h - 16, "DELEGADOS", "F2", 10))
+    contenido.append(t(left_x + 14, delg_top + delg_h - 32, "Totales en disputa:", "F2", 9))
+    contenido.append("0.72 0.12 0.12 rg")
+    contenido.append(t_right(left_x + left_w - 22, delg_top + delg_h - 32, money(resumen.get("delegados_totales", 0)), "F2", 9))
+    contenido.append("0 0 0 rg")
+
+    dy = delg_top + delg_h - 48
+    for pz in planillas[:3]:
+        nom = str(pz.get("planilla", "N/D"))[:12]
+        dg = money(pz.get("delegados_ganados", 0))
+        contenido.append(t(left_x + 14, dy, f"{nom}:", "F1", 8))
+        contenido.append("0.72 0.12 0.12 rg")
+        contenido.append(t_right(left_x + left_w - 22, dy, dg, "F2", 8))
+        contenido.append("0 0 0 rg")
+        dy -= 12
 
     # Grafica derecha
     contenido.append(t(right_x, section_top + 8, "GRAFICA DE PASTEL (VOTOS POR PLANILLA)", "F2", 9))

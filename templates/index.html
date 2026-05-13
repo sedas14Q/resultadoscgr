@@ -97,11 +97,13 @@
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Expresion politica:</span><br><br>{% if r.empate %}{% for g in r.ganadores %}{{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}{% endif %}</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">3- Votos ganador:</span><br><br>{{ r.ganador.votos | default(0, true) if r.ganador else 0 }}</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">4- Porcentaje ganador:</span><br><br>{{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%</div>
+                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">5- Delegados ganados:</span><br><br>{{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}</div>
                 {% else %}
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">1- Planilla:</span><br>N/D</div>
                 <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Candidato:</span><br>N/D</div>
                 <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">3- Votos:</span><br>0</div>
                 <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">4- Porcentaje:</span><br>0%</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">5- Delegados ganados:</span><br>0</div>
                 {% endif %}
             </div>
 
@@ -122,7 +124,7 @@
             </div>
             {% if r.planillas %}
             <table class="candidates-table">
-                <thead><tr><th>Planilla</th><th>EXPRESION POLITICA</th><th>Candidatos</th><th>Votos</th><th>%</th></tr></thead>
+                <thead><tr><th>Planilla</th><th>EXPRESION POLITICA</th><th>Candidatos</th><th>Votos</th><th>%</th><th>Delegados ganados</th></tr></thead>
                 <tbody>
                 {% for p in r.planillas %}
                 <tr class="{% if r.ganador and p.planilla == r.ganador.planilla %}row-win{% elif (p.porcentaje if p.porcentaje is not none else 0) < 20 %}row-low{% else %}row-normal{% endif %}">
@@ -131,6 +133,7 @@
                     <td>{{ p.candidatos | join(', ') }}</td>
                     <td>{{ p.votos }}</td>
                     <td>{{ p.porcentaje if p.porcentaje is not none else 0 }}%</td>
+                    <td>{{ p.delegados_ganados | default(0, true) }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>

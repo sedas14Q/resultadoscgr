@@ -64,6 +64,7 @@ def normalizar_candidatos(data):
         if isinstance(lista, list) and lista:
             votos_planilla = _to_int(item.get("votos"), 0)
             porcentaje_planilla = _to_float(item.get("porcentaje"), 0)
+            delegados_planilla = _to_int(item.get("delegados_ganados"), 0)
             for idx, nombre in enumerate(lista):
                 cand_name = _safe_text(nombre) or "Sin nombre"
                 candidatos.append(
@@ -73,6 +74,7 @@ def normalizar_candidatos(data):
                         "candidato": cand_name,
                         "votos": votos_planilla if idx == 0 else 0,
                         "porcentaje": porcentaje_planilla if idx == 0 else 0.0,
+                        "delegados_ganados": delegados_planilla if idx == 0 else 0,
                     }
                 )
             continue
@@ -84,6 +86,7 @@ def normalizar_candidatos(data):
                 "candidato": _safe_text(item.get("candidato")) or "Sin nombre",
                 "votos": _to_int(item.get("votos"), 0),
                 "porcentaje": _to_float(item.get("porcentaje"), 0),
+                "delegados_ganados": _to_int(item.get("delegados_ganados"), 0),
             }
         )
 
@@ -116,6 +119,7 @@ def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[di
                 "candidatos": [],
                 "votos": 0,
                 "porcentaje": 0.0,
+                "delegados_ganados": 0,
             },
         )
 
@@ -127,6 +131,7 @@ def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[di
             item["expresion_politica"] = _safe_text(c.get("expresion_politica")) or ""
 
         item["votos"] += max(0, _to_int(c.get("votos"), 0))
+        item["delegados_ganados"] += _to_int(c.get("delegados_ganados"), 0)
 
     total = _to_int(votos_totales, 0)
     if total <= 0:
@@ -156,6 +161,8 @@ def validar_acta(candidatos: list, resumen: dict) -> str | None:
             return "Cada candidato debe tener planilla y nombre."
         if _to_int(c.get("votos"), 0) < 0:
             return "Los votos no pueden ser negativos."
+        if _to_int(c.get("delegados_ganados"), 0) < 0:
+            return "Los delegados ganados no pueden ser negativos."
 
     planillas = agrupar_planillas(candidatos)
     if not planillas or any(p.get("votos", 0) <= 0 for p in planillas):
@@ -279,18 +286,20 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(f"q 0.93 0.97 0.99 rg 36 {head_bottom:.2f} 523 {head_h} re f Q")
     contenido.append(f"q 0.80 0.88 0.94 RG 0.8 w 36 {head_bottom:.2f} 523 {head_h} re S Q")
 
-    # Columnas: Planilla | Expresion politica | Candidatos | Votos | %
+    # Columnas: Planilla | Expresion politica | Candidatos | Votos | % | DG
     x_plan = 44
     x_expr = 150
     x_cands = 320
-    x_votos_r = 500
-    x_pct_r = 548
+    x_votos_r = 485
+    x_pct_r = 522
+    x_dg_r = 558
 
     contenido.append(t(x_plan, head_bottom + 8, "Planilla", "F2", 10))
     contenido.append(t(x_expr, head_bottom + 8, "EXPRESION POLITICA", "F2", 10))
     contenido.append(t(x_cands, head_bottom + 8, "Candidatos", "F2", 10))
-    contenido.append(t(458, head_bottom + 8, "Votos", "F2", 10))
-    contenido.append(t(523, head_bottom + 8, "%", "F2", 10))
+    contenido.append(t(444, head_bottom + 8, "Votos", "F2", 10))
+    contenido.append(t(503, head_bottom + 8, "%", "F2", 10))
+    contenido.append(t(536, head_bottom + 8, "DG", "F2", 10))
 
     # Cursor vertical: parte superior de la primera fila.
     y = head_bottom - 6
@@ -322,6 +331,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         expr = str(pz.get("expresion_politica", "") or "")[:24]
         votos = money(pz.get("votos", 0))
         pct = f"{_to_float(pz.get('porcentaje', 0), 0):.2f}%"
+        dg = money(pz.get("delegados_ganados", 0))
 
         font = "F2" if es_ganador else "F1"
         text_y = row_top - 18
@@ -334,6 +344,9 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         y_center = row_bottom + (row_h / 2) - 3
         contenido.append(t_right(x_votos_r, y_center, votos, font, 10))
         contenido.append(t_right(x_pct_r, y_center, pct, font, 10))
+        contenido.append("0.72 0.12 0.12 rg")
+        contenido.append(t_right(x_dg_r, y_center, dg, "F2", 10))
+        contenido.append("0 0 0 rg")
 
         y = row_bottom - 2
 

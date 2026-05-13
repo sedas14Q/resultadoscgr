@@ -302,17 +302,20 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(536, head_bottom + 8, "DG", "F2", 10))
 
     # Cursor vertical: parte superior de la primera fila.
-    y = head_bottom - 6
-    max_rows = 9
+    y = head_bottom - 8
+    max_rows = 7
 
     for i, pz in enumerate(planillas[:max_rows], start=1):
         lista_cands = [str(n).strip() for n in (pz.get("candidatos", []) or []) if str(n).strip()]
         if not lista_cands:
             lista_cands = ["N/D"]
-        # Mostrar todos los candidatos (uno por linea) para mejor lectura.
-        cand_lines = [c[:26] for c in lista_cands]
-        line_h = 12
-        row_h = max(34, (line_h * len(cand_lines)) + 14)
+        # Evitar saturacion visual: mostrar maximo 2 candidatos y resumir excedentes.
+        cand_lines = [c[:24] for c in lista_cands[:2]]
+        extras = max(0, len(lista_cands) - 2)
+        if extras:
+            cand_lines.append(f"... +{extras} mas")
+        line_h = 11
+        row_h = max(40, (line_h * len(cand_lines)) + 16)
         row_top = y
         row_bottom = row_top - row_h
 
@@ -334,14 +337,14 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         dg = money(pz.get("delegados_ganados", 0))
 
         font = "F2" if es_ganador else "F1"
-        text_y = row_top - 18
+        text_y = row_top - 17
         contenido.append(t(x_plan, text_y, nombre_plan, font, 10))
         contenido.append(t(x_expr, text_y, expr, font, 10))
         for idx_line, line in enumerate(cand_lines):
             contenido.append(t(x_cands, text_y - (idx_line * line_h), line, font, 10))
 
         # Centrar votos/% respecto al bloque de candidatos multi-linea.
-        y_center = row_bottom + (row_h / 2) - 3
+        y_center = row_bottom + (row_h / 2) - 2
         contenido.append(t_right(x_votos_r, y_center, votos, font, 10))
         contenido.append(t_right(x_pct_r, y_center, pct, font, 10))
         contenido.append("0.72 0.12 0.12 rg")
@@ -355,12 +358,12 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         y -= 18
 
     # Bloque inferior: resumen y grafica (sin encimar)
-    section_top = y - 14
+    section_top = y - 12
     left_x = 36
     left_w = 275
     right_x = 324
     right_w = 235
-    section_h = 208
+    section_h = 230
     section_bottom = section_top - section_h
 
     # Resumen izquierdo
@@ -386,11 +389,11 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         else:
             contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
             contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F1", 10))
-        ry -= 20
+        ry -= 18
 
     # Seccion explicita de delegados: total en disputa + ganados por planilla
-    delg_top = section_bottom + 8
-    delg_h = 68
+    delg_top = section_bottom + 10
+    delg_h = 86
     contenido.append(f"q 0.99 0.97 0.97 rg {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re f Q")
     contenido.append(f"q 0.92 0.72 0.72 RG 0.8 w {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re S Q")
     contenido.append(t(left_x + 14, delg_top + delg_h - 16, "DELEGADOS", "F2", 10))
@@ -399,8 +402,9 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t_right(left_x + left_w - 22, delg_top + delg_h - 32, money(resumen.get("delegados_totales", 0)), "F2", 9))
     contenido.append("0 0 0 rg")
 
-    dy = delg_top + delg_h - 48
-    for pz in planillas[:3]:
+    dy = delg_top + delg_h - 52
+    visibles = planillas[:2]
+    for pz in visibles:
         nom = str(pz.get("planilla", "N/D"))[:12]
         dg = money(pz.get("delegados_ganados", 0))
         contenido.append(t(left_x + 14, dy, f"{nom}:", "F1", 8))
@@ -408,6 +412,9 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         contenido.append(t_right(left_x + left_w - 22, dy, dg, "F2", 8))
         contenido.append("0 0 0 rg")
         dy -= 12
+    restantes = max(0, len(planillas) - len(visibles))
+    if restantes > 0:
+        contenido.append(t(left_x + 14, dy, f"... +{restantes} planillas", "F1", 8))
 
     # Grafica derecha
     contenido.append(t(right_x, section_top + 8, "GRAFICA DE PASTEL (VOTOS POR PLANILLA)", "F2", 9))
@@ -429,7 +436,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.extend(_pdf_draw_pie(pie_cx, pie_cy, pie_r, pie_values, pie_colors))
 
     ley_y = section_top - 18
-    for i, pz in enumerate(planillas[:5]):
+    for i, pz in enumerate(planillas[:4]):
         rr, gg, bb = pie_colors[i % len(pie_colors)]
         votos_p = _to_int(pz.get("votos"), 0)
         pct_p = _to_float(pz.get("porcentaje"), 0)
@@ -439,7 +446,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         contenido.append(f"q {rr:.3f} {gg:.3f} {bb:.3f} rg {bx} {ley_y - 2:.2f} 8 8 re f Q")
         contenido.append("q 0.35 0.45 0.60 RG 0.4 w {} {:.2f} 8 8 re S Q".format(bx, ley_y - 2))
         contenido.append(t(bx + 12, ley_y, f"{nombre_p}: {votos_p} ({pct_p:.1f}%)", "F1", 8))
-        ley_y -= 12
+        ley_y -= 13
 
     # Pie de pagina
     contenido.append(t(36, 24, "Documento generado automaticamente por el sistema de captura.", "F1", 9))

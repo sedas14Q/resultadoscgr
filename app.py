@@ -11,6 +11,7 @@ from time import perf_counter
 from email.message import EmailMessage
 
 from flask import Flask, Response, jsonify, render_template, request
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
 from dependencias import normalizar_dependencia
@@ -20,7 +21,8 @@ app.config["JSON_AS_ASCII"] = False
 app.json.ensure_ascii = False
 
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1548")
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
+DEFAULT_ADMIN_PASSWORD_HASH = generate_password_hash("1548")
 
 
 def _safe_text(value: str | None) -> str | None:
@@ -141,7 +143,8 @@ def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[di
 def _admin_autorizado(payload: dict) -> bool:
     usuario = _safe_text((payload or {}).get("usuario")) or ""
     contrasena = str((payload or {}).get("contrasena") or "")
-    return usuario == ADMIN_USER and contrasena == ADMIN_PASSWORD
+    hash_objetivo = ADMIN_PASSWORD_HASH or DEFAULT_ADMIN_PASSWORD_HASH
+    return usuario == ADMIN_USER and check_password_hash(hash_objetivo, contrasena)
 
 
 def validar_acta(candidatos: list, resumen: dict) -> str | None:
@@ -610,6 +613,12 @@ def crear_acta_manual():
 @app.route("/api/actas/estado", methods=["GET"])
 def estado_actas():
     return jsonify({"status": "ok", "data": db.obtener_estado()})
+
+@app.route("/api/health/db", methods=["GET"])
+def health_db():
+    estado = db.healthcheck()
+    code = 200 if estado.get("ok") else 503
+    return jsonify({"status": "ok" if estado.get("ok") else "error", "data": estado}), code
 
 
 @app.route("/api/actas/<int:acta_id>/pdf", methods=["GET"])

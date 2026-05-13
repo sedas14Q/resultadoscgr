@@ -761,7 +761,7 @@
 }
 
 .delegados-total-cell { color: #b42318 !important; font-weight: 800; }
-.delegados-ganados-red { color: #b42318; font-weight: 800; }
-.delegados-inline-red { color: #b42318; font-weight: 800; margin-left: 8px; }
+.delegados-ganados-red { color: #b42318 !important; font-weight: 800; }
+.delegados-inline-red { color: #b42318 !important; font-weight: 800; margin-left: 8px; }
 
 

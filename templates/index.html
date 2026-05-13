@@ -108,11 +108,11 @@
             </div>
 
             <div class="votos-lista">
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">6- Votos totales:</span><br>{{ r.resumen.votos_totales | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">7- Votos nulos:</span><br>{{ r.resumen.votos_nulos | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">8- Abstenciones:</span><br>{{ r.resumen.abstenciones | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">9- Boletas no usadas:</span><br>{{ r.resumen.boletas_no_usadas | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">10- Total padron sindicato:</span><br>{{ r.resumen.total_padron_sindicato | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">6- Votos totales:</span><br><br>{{ r.resumen.votos_totales | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">7- Votos nulos:</span><br><br>{{ r.resumen.votos_nulos | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">8- Abstenciones:</span><br><br>{{ r.resumen.abstenciones | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">9- Boletas no usadas:</span><br><br>{{ r.resumen.boletas_no_usadas | default(0, true) }}</div>
+                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">10- Total padron sindicato:</span><br><br>{{ r.resumen.total_padron_sindicato | default(0, true) }}</div>
             </div>
         </section>
 
@@ -132,7 +132,8 @@
                     <td>{{ p.expresion_politica or 'N/D' }}</td>
                     <td>{{ p.candidatos | join(', ') }}</td>
                     <td>{{ p.votos }}</td>
-                    <td>{{ p.porcentaje if p.porcentaje is not none else 0 }}% <span class="delegados-inline-red"> {{ p.delegados_ganados | default(0, true) }}</span></td>
+                    <td>{{ p.porcentaje if p.porcentaje is not none else 0 }} %</td>
+                    <td><span class="delegados-inline-red"> {{ p.delegados_ganados | default(0, true) }}</span></td>
                 </tr>
                 {% endfor %}
                 </tbody>

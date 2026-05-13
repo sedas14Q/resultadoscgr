@@ -1,4 +1,4 @@
-﻿"""
+"""
 db.py - Persistencia de actas con Postgres (produccion) y SQLite (local).
 """
 
@@ -10,11 +10,16 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
+# Intentar importar psycopg2 con mejor reporte de errores
+psycopg2 = None
+psycopg2_error = None
 try:
     import psycopg2
     import psycopg2.extras
-except Exception:  # pragma: no cover
-    psycopg2 = None
+except ImportError as e:
+    psycopg2_error = str(e)
+except Exception as e:
+    psycopg2_error = f"Error inesperado: {str(e)}"
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "actas.db"
@@ -26,7 +31,10 @@ IS_POSTGRES = DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith(
 def _get_conn():
     if IS_POSTGRES:
         if psycopg2 is None:
-            raise RuntimeError("DATABASE_URL configurada pero falta instalar psycopg2-binary")
+            error_msg = f"DATABASE_URL configurada pero psycopg2 no esta disponible"
+            if psycopg2_error:
+                error_msg += f": {psycopg2_error}"
+            raise RuntimeError(error_msg)
         dsn = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(dsn)
         try:

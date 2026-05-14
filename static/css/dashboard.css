@@ -900,7 +900,6 @@
         padding:7px 10px;
     }
 }
-
 /* ===== RESUMEN DEL GANADOR ===== */
 
 .winner-summary-section{
@@ -908,95 +907,128 @@
     border-radius:var(--radius);
     background:var(--surface-soft);
     padding:14px;
-    margin-bottom:18px;
+    margin-bottom:16px;
 }
 
 .winner-summary-section h3{
-    margin:0 0 12px;
+    margin-bottom:10px;
     font-size:16px;
-    line-height:1.3;
-    color:var(--text);
     text-transform:uppercase;
     letter-spacing:.02em;
 }
 
+
+/* banner */
+
 .winner-banner{
     display:flex;
-    align-items:center;
     justify-content:space-between;
+    align-items:center;
     gap:12px;
-    margin:8px 0 12px;
-    padding:10px 12px;
-    border-radius:10px;
+    margin-bottom:12px;
+}
+
+.winner-main{
+    flex:1;
+    background:var(--accent-soft);
     border:1px solid #bce8cf;
-    background:#f2fcf5;
+    border-radius:10px;
+    padding:10px 14px;
 }
 
 .winner-banner-label{
-    font-weight:700;
-    color:#0f6f4c;
+    display:block;
+    font-size:11px;
+    font-family:var(--font-mono);
     text-transform:uppercase;
-    letter-spacing:.4px;
-    font-size:12px;
+    margin-bottom:4px;
 }
 
 .winner-banner-value{
-    color:#0f6f4c;
+    display:block;
+    font-size:28px;
     font-weight:800;
-    font-size:22px;
     line-height:1;
 }
 
-.winner-summary-table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:15px;
-    border:1px solid #d4deea;
+.winner-side{
+    min-width:100px;
+    text-align:center;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fff;
+    padding:8px;
+}
+
+.winner-mini-label{
+    display:block;
+    font-size:10px;
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    margin-bottom:4px;
+}
+
+.winner-mini-value{
+    font-size:28px;
+    font-weight:800;
+}
+
+
+/* stats */
+
+.winner-stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+}
+
+.winner-stat-box{
+    background:#fff;
+    border:1px solid var(--border);
     border-radius:8px;
-    overflow:hidden;
+    padding:10px;
 }
 
-.winner-summary-table td{
-    padding:12px;
-    border-bottom:1px solid #d6dfeb;
-    background:#f5f7fa;
-    line-height:1.35;
+.winner-stat-box span{
+    display:block;
+    font-size:10px;
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-bottom:6px;
 }
 
-.winner-summary-table tr td:first-child{
-    width:55%;
-    font-weight:700;
-    color:#0f172a;
-    background:#edf5ff;
+.winner-stat-box strong{
+    display:block;
+    font-size:22px;
+    font-weight:800;
+    line-height:1;
 }
 
-.winner-summary-table tr td:last-child{
-    text-align:right;
-    font-weight:700;
-    color:var(--text);
-}
 
-/* ===== CELULAR ===== */
+/* móvil */
 
 @media (max-width:768px){
 
     .winner-banner{
         flex-direction:column;
-        align-items:flex-start;
     }
 
-    .winner-banner-value{
-        font-size:18px;
+    .winner-main,
+    .winner-side{
+        width:100%;
     }
 
-    .winner-summary-table{
-        font-size:13px;
+    .winner-stats-grid{
+        grid-template-columns:repeat(2,1fr);
     }
 
-    .winner-summary-table td{
-        padding:8px;
+    .winner-stat-box strong{
+        font-size:16px;
     }
 
+    .winner-banner-value,
+    .winner-mini-value{
+        font-size:20px;
+    }
 }
-
-

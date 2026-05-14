@@ -87,95 +87,110 @@
         </div>
     </div>
 
-   <section class="winner-summary-section">
+<section class="winner-summary-section">
 
     <h3>Resumen del Ganador</h3>
 
     <div class="winner-banner">
-        <span class="winner-banner-label">
-            Planilla Ganadora
-        </span>
 
-        <span class="winner-banner-value">
-            {% if r.empate %}
-                {% for g in r.ganadores %}
-                    {{ g.planilla }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            {% else %}
-                {{ r.ganador.planilla if r.ganador else "N/D" }}
-            {% endif %}
-        </span>
+        <div class="winner-main">
+
+            <span class="winner-banner-label">
+                Planilla ganadora
+            </span>
+
+            <span class="winner-banner-value">
+                {% if r.empate %}
+                    {% for g in r.ganadores %}
+                        {{ g.planilla }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {{ r.ganador.planilla if r.ganador else "N/D" }}
+                {% endif %}
+            </span>
+
+        </div>
+
+        <div class="winner-side">
+
+            <span class="winner-mini-label">
+                Delegados
+            </span>
+
+            <span class="winner-mini-value">
+                {{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}
+            </span>
+
+        </div>
+
     </div>
 
 
-    <table class="winner-summary-table">
+    <div class="winner-stats-grid">
 
-        <tbody>
+        <div class="winner-stat-box">
+            <span>Expresión política</span>
+            <strong>
+                {% if r.empate %}
+                    {% for g in r.ganadores %}
+                        {{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}
+                {% endif %}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Expresión política</td>
-                <td>
-                    {% if r.empate %}
-                        {% for g in r.ganadores %}
-                            {{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        {{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}
-                    {% endif %}
-                </td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Votos ganador</span>
+            <strong>
+                {{ r.ganador.votos | default(0, true) if r.ganador else 0 }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Votos ganador</td>
-                <td>
-                    {{ r.ganador.votos | default(0, true) if r.ganador else 0 }}
-                </td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Porcentaje</span>
+            <strong>
+                {{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%
+            </strong>
+        </div>
 
-            <tr>
-                <td>Porcentaje</td>
-                <td>
-                    {{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }} %
-                </td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Votos totales</span>
+            <strong>
+                {{ r.resumen.votos_totales | default(0, true) }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Delegados ganados</td>
-                <td>
-                    <span class="delegados-inline-red">
-                        {{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}
-                    </span>
-                </td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Votos nulos</span>
+            <strong>
+                {{ r.resumen.votos_nulos | default(0, true) }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Votos totales</td>
-                <td>{{ r.resumen.votos_totales | default(0, true) }}</td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Abstenciones</span>
+            <strong>
+                {{ r.resumen.abstenciones | default(0, true) }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Votos nulos</td>
-                <td>{{ r.resumen.votos_nulos | default(0, true) }}</td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Boletas no usadas</span>
+            <strong>
+                {{ r.resumen.boletas_no_usadas | default(0, true) }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Abstenciones</td>
-                <td>{{ r.resumen.abstenciones | default(0, true) }}</td>
-            </tr>
+        <div class="winner-stat-box">
+            <span>Total padrón</span>
+            <strong>
+                {{ r.resumen.total_padron_sindicato | default(0, true) }}
+            </strong>
+        </div>
 
-            <tr>
-                <td>Boletas no usadas</td>
-                <td>{{ r.resumen.boletas_no_usadas | default(0, true) }}</td>
-            </tr>
-
-            <tr>
-                <td>Total padrón sindicato</td>
-                <td>{{ r.resumen.total_padron_sindicato | default(0, true) }}</td>
-            </tr>
-
-        </tbody>
-
-    </table>
+    </div>
 
 </section>
 

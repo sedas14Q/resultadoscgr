@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
@@ -202,13 +202,28 @@
             </div>
             {% if r.planillas %}
             <table class="candidates-table">
-                <thead><tr><th>Planilla</th><th>EXPRESION POLITICA</th><th>Candidatos</th><th>Votos</th><th>%</th><th>Delegados Ganados</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Planilla</th>
+                        <th>EXPRESION POLITICA</th>
+                        <th class="candidatos-th">Candidatos</th>
+                        <th>Votos</th>
+                        <th>%</th>
+                        <th>Delegados Ganados</th>
+                    </tr>
+                </thead>
                 <tbody>
                 {% for p in r.planillas %}
                 <tr class="{% if r.ganador and p.planilla == r.ganador.planilla %}row-win{% elif (p.porcentaje if p.porcentaje is not none else 0) < 20 %}row-low{% else %}row-normal{% endif %}">
                     <td>{{ p.planilla }}</td>
                     <td>{{ p.expresion_politica or 'N/D' }}</td>
-                    <td>{{ p.candidatos | join(', ') }}</td>
+                    <td class="candidatos-cell">
+                        <ul class="candidatos-list">
+                            {% for nombre in p.candidatos %}
+                                <li>{{ nombre }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
                     <td>{{ p.votos }}</td>
                     <td>{{ p.porcentaje if p.porcentaje is not none else 0 }} %</td>
                     <td><span class="delegados-inline-red"> {{ p.delegados_ganados | default(0, true) }}</span></td>

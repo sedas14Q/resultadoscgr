@@ -525,6 +525,7 @@ header h1 {
     color: var(--danger);
 }
 
+/* Tabla mejorada para muchos candidatos */
 .candidates-table {
     width: 100%;
     border-collapse: separate;
@@ -547,12 +548,20 @@ header h1 {
     text-align: left;
 }
 
+/* Anchos sugeridos para columnas (opcional, mejora la legibilidad) */
+.candidates-table th:nth-child(1) { width: 12%; }
+.candidates-table th:nth-child(2) { width: 18%; }
+.candidates-table th:nth-child(3) { width: 35%; }
+.candidates-table th:nth-child(4) { width: 10%; }
+.candidates-table th:nth-child(5) { width: 10%; }
+.candidates-table th:nth-child(6) { width: 15%; }
+
 .candidates-table td {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 12px 10px;
-    vertical-align: middle;
+    vertical-align: top;
     transition: background 0.2s, transform 0.1s;
 }
 
@@ -571,9 +580,46 @@ header h1 {
     font-weight: 700;
 }
 
-.candidates-table td:nth-child(3) {
-    font-size: 16px;
-    font-weight: 700;
+/* Celda de candidatos: lista vertical */
+.candidatos-cell {
+    padding: 10px 12px;
+}
+
+.candidatos-list {
+    margin: 0;
+    padding-left: 18px;
+    list-style-type: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.candidatos-list li {
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+    color: var(--text);
+    word-break: break-word;
+}
+
+/* Si hay muchos candidatos, scroll vertical suave */
+.candidatos-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+/* Personalización del scroll para la lista de candidatos */
+.candidatos-list::-webkit-scrollbar {
+    width: 5px;
+}
+.candidatos-list::-webkit-scrollbar-track {
+    background: var(--border);
+    border-radius: 10px;
+}
+.candidatos-list::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
 }
 
 .candidates-table td:nth-child(4),
@@ -582,6 +628,7 @@ header h1 {
     text-align: center;
     font-size: 18px;
     font-weight: 800;
+    vertical-align: middle;
 }
 
 /* Estilos de filas según resultado */
@@ -854,6 +901,10 @@ header h1 {
     .candidates-table td:nth-child(5),
     .candidates-table td:nth-child(6) {
         font-size: 14px;
+    }
+
+    .candidatos-list li {
+        font-size: 12px;
     }
 
     .gear-btn {

@@ -1,5 +1,4 @@
-﻿
-/* dashboard.js - UI de carga de actas y graficas (con gráficas circulares mejoradas) */
+﻿/* dashboard.js - UI de carga de actas y graficas */
 (function () {
   const raw = document.getElementById("resultados-json");
   const resultados = raw ? JSON.parse(raw.textContent || "[]") : [];
@@ -20,116 +19,6 @@
   const authMsg = document.getElementById("auth-msg");
   const authCancel = document.getElementById("auth-cancel");
   const authConfirm = document.getElementById("auth-confirm");
-
-  // ======================== MEJORA DE GRÁFICAS ========================
-  // Paleta de colores suaves y armónicos (excluyendo el verde fuerte para el ganador)
-  const PALETA_SUAVE = [
-    '#4682B4', // azul acero
-    '#DAA520', // oro
-    '#CD5C5C', // rojo indio
-    '#8FBC8F', // verde claro
-    '#6A5ACD', // pizarra azul
-    '#FF8C00', // naranja oscuro
-    '#20B2AA', // verde azulado
-    '#DB7093', // rosa palo
-    '#B0C4DE', // azul claro
-    '#F4A460', // siena
-    '#9ACD32'  // amarillo verdoso
-  ];
-  const COLOR_GANADOR = '#2E8B57'; // verde fuerte para el ganador
-
-  // Función para generar colores según planillas y ganador
-  function generarColoresGrafica(planillas, ganadorNombre) {
-    const colores = [];
-    let ganadorIndex = -1;
-    if (ganadorNombre) {
-      ganadorIndex = planillas.findIndex(p => p.planilla === ganadorNombre);
-    }
-    let colorIdx = 0;
-    planillas.forEach((_, idx) => {
-      if (idx === ganadorIndex) {
-        colores.push(COLOR_GANADOR);
-      } else {
-        // Usar colores de la paleta suave cíclicamente
-        colores.push(PALETA_SUAVE[colorIdx % PALETA_SUAVE.length]);
-        colorIdx++;
-      }
-    });
-    return colores;
-  }
-
-  // Función para crear o actualizar gráficas circulares
-  function crearGraficasCirculares() {
-    resultados.forEach((r, i) => {
-      const canvasId = `chart${i + 1}`;
-      const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
-
-      const planillas = r.planillas || [];
-      if (!planillas.length) return;
-
-      const labels = planillas.map(p => p.planilla || "Sin planilla");
-      const datos = planillas.map(p => Number(p.votos || 0));
-      
-      // Determinar nombre del ganador (prioriza ganador individual, si es empate usa el primero)
-      let ganadorNombre = null;
-      if (r.ganador && r.ganador.planilla) ganadorNombre = r.ganador.planilla;
-      else if (r.empate && r.ganadores && r.ganadores.length) ganadorNombre = r.ganadores[0].planilla;
-      
-      const colores = generarColoresGrafica(planillas, ganadorNombre);
-      
-      // Destruir gráfica anterior si existe (para evitar duplicados en recargas)
-      const chartInstance = Chart.getChart(canvas);
-      if (chartInstance) chartInstance.destroy();
-      
-      new Chart(canvas, {
-        type: 'doughnut',          // circular moderna
-        data: {
-          labels: labels,
-          datasets: [{
-            data: datos,
-            backgroundColor: colores,
-            borderColor: '#ffffff',
-            borderWidth: 2,
-            hoverOffset: 8,
-            cutout: '55%',         // efecto anillo
-            radius: '85%'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 11, family: "'IBM Plex Sans', sans-serif" },
-                boxWidth: 12,
-                padding: 8,
-                color: '#000080'
-              }
-            },
-            tooltip: {
-              backgroundColor: '#0f172a',
-              titleColor: '#f8fafc',
-              bodyColor: '#e2e8f0',
-              padding: 10,
-              callbacks: {
-                label: (ctx) => {
-                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
-                  const pct = ((ctx.raw / total) * 100).toFixed(2);
-                  const expr = (planillas[ctx.dataIndex] || {}).expresion_politica || "";
-                  return expr ? `${ctx.label} (${expr}): ${ctx.raw} votos (${pct}%)` : `${ctx.label}: ${ctx.raw} votos (${pct}%)`;
-                }
-              }
-            }
-          },
-          layout: { padding: 8 }
-        }
-      });
-    });
-  }
-  // ======================== FIN MEJORA DE GRÁFICAS ========================
 
   function pedirAutorizacion() {
     return new Promise((resolve) => {
@@ -254,16 +143,71 @@
       }
     });
   }
-
   let estadoActual = {
     total_actas: resultados.length,
     ultimo_id: 0,
   };
 
-  // Inicializar gráficas mejoradas después de que el DOM esté listo
-  setTimeout(() => {
-    crearGraficasCirculares();
-  }, 100);
+  resultados.forEach((r, i) => {
+    const id = `chart${i + 1}`;
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+
+    const labels = (r.planillas || []).map((c) => c.planilla || "Sin planilla");
+    const datos = (r.planillas || []).map((c) => Number(c.votos || 0));
+    const maxVotos = Math.max(...datos, 0);
+    const winnerIndex = datos.findIndex((v) => v === maxVotos);
+    const coloresBarras = datos.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
+    const bordesBarras = coloresBarras.map(() => "#ffffff");
+
+    if (!labels.length) return;
+
+    new Chart(canvas, {
+      type: "pie",
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 650,
+          easing: "easeOutQuart",
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: { boxWidth: 12, boxHeight: 12, color: "#334155" },
+          },
+          tooltip: {
+            backgroundColor: "#0f172a",
+            titleColor: "#f8fafc",
+            bodyColor: "#e2e8f0",
+            padding: 10,
+            callbacks: {
+              label: (ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
+                const pct = ((ctx.raw / total) * 100).toFixed(2);
+                const expr = ((r.planillas || [])[ctx.dataIndex] || {}).expresion_politica || "";
+                return expr ? `${ctx.label} (${expr}): ${ctx.raw} votos (${pct}%)` : `${ctx.label}: ${ctx.raw} votos (${pct}%)`;
+              },
+            },
+          },
+        },
+      },
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Votos por planilla",
+            data: datos,
+            backgroundColor: coloresBarras,
+            borderColor: bordesBarras,
+            borderWidth: 2,
+            hoverOffset: 8,
+          },
+        ],
+      },
+    });
+  });
 
   let estadoInicializado = false;
 
@@ -295,10 +239,11 @@
         window.location.reload();
       }
     } catch (_) {
-      // silencioso
+      // silencioso para no molestar al usuario por errores temporales
     }
   }
 
+  // Primer estado real desde backend, luego polling.
   verificarActualizacion().then(() => {
     setInterval(verificarActualizacion, 5000);
   });
@@ -407,12 +352,12 @@
         return bNom.localeCompare(aNom, "es", { sensitivity: "base" });
       });
     } else {
+      // "Recientes": respetar el orden original del backend (id DESC).
       ordenadas.sort((a, b) => cards.indexOf(a) - cards.indexOf(b));
     }
 
     ordenadas.forEach((card) => mainGrid.appendChild(card));
   }
-
   function sincronizarBuscadores() {
     if (!searchNumeroInput || !searchNombreInput) return;
 
@@ -425,7 +370,6 @@
     searchNombreInput.title = numeroConValor ? "Limpia el filtro por numero para buscar por nombre" : "";
     searchNumeroInput.title = nombreConValor ? "Limpia el filtro por nombre para buscar por numero" : "";
   }
-
   function filtrarActas() {
     const soloDuplicadas = Boolean(duplicadosMenu && duplicadosMenu.open);
     if (!cards.length) return;
@@ -504,3 +448,18 @@
   activarAccionesActa();
   filtrarActas();
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

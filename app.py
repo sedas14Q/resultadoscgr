@@ -245,11 +245,17 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     resumen = normalizar_resumen((acta or {}).get("resumen"))
     planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
     max_votos = max((p.get("votos", 0) for p in planillas), default=0)
+    ganador_nombre = None
+    for p in planillas:
+        if p.get("votos", 0) == max_votos and max_votos > 0:
+            ganador_nombre = p.get("planilla")
+            break
 
     if resumen.get("votos_totales", 0) <= 0:
         resumen["votos_totales"] = sum(p.get("votos", 0) for p in planillas)
     resumen, _ = recalcular_padron(resumen)
 
+    # Funciones auxiliares para dibujar texto
     def t(x: float, y: float, text: str, font: str = "F1", size: int = 11) -> str:
         txt = _pdf_escape(_as_latin1(text))
         return f"BT /{font} {size} Tf 1 0 0 1 {x:.2f} {y:.2f} Tm ({txt}) Tj ET"
@@ -276,17 +282,17 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(48, 736, f"Dependencia: {(acta.get('numero') or 'N/D')} - {(acta.get('nombre') or 'N/D')}", "F2", 12))
     contenido.append(t(48, 714, f"Fecha: {(acta.get('fecha') or 'Sin fecha')}   Capturista: {(acta.get('capturista') or 'N/D')}", "F1", 10))
 
-    # Tabla por planilla
+    # ================= TABLA DE PLANILLAS (con altura dinámica) =================
     y_top = 680
     contenido.append(t(36, y_top, "PLANILLAS", "F2", 13))
     head_top = y_top - 16
     head_h = 24
     head_bottom = head_top - head_h
 
+    # Encabezados de columna
     contenido.append(f"q 0.93 0.97 0.99 rg 36 {head_bottom:.2f} 523 {head_h} re f Q")
     contenido.append(f"q 0.80 0.88 0.94 RG 0.8 w 36 {head_bottom:.2f} 523 {head_h} re S Q")
 
-    # Columnas: Planilla | Expresion politica | Candidatos | Votos | % | Delegados ganados
     x_plan = 44
     x_expr = 150
     x_cands = 320
@@ -301,63 +307,89 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(503, head_bottom + 8, "%", "F2", 10))
     contenido.append(t(536, head_bottom + 8, "Delegados Ganados", "F2", 10))
 
-    # Cursor vertical: parte superior de la primera fila.
+    # Dibujar filas con altura variable
     y = head_bottom - 8
-    max_rows = 7
+    line_h = 11
+    base_font_size = 10
 
-    for i, pz in enumerate(planillas[:max_rows], start=1):
+    for i, pz in enumerate(planillas):
+        # Lista completa de candidatos (sin truncar)
         lista_cands = [str(n).strip() for n in (pz.get("candidatos", []) or []) if str(n).strip()]
         if not lista_cands:
             lista_cands = ["N/D"]
-        # Evitar saturacion visual: mostrar maximo 2 candidatos y resumir excedentes.
-        cand_lines = [c[:24] for c in lista_cands[:2]]
-        extras = max(0, len(lista_cands) - 2)
-        if extras:
-            cand_lines.append(f"... +{extras} mas")
-        line_h = 11
-        row_h = max(40, (line_h * len(cand_lines)) + 16)
+
+        # Dividir nombres largos en múltiples líneas (máx 35 caracteres por línea)
+        lines = []
+        for nombre in lista_cands:
+            if len(nombre) <= 35:
+                lines.append(nombre)
+            else:
+                # Dividir en palabras
+                words = nombre.split()
+                current = ""
+                for w in words:
+                    if len(current) + len(w) + 1 <= 35:
+                        current += (" " if current else "") + w
+                    else:
+                        if current:
+                            lines.append(current)
+                        current = w
+                if current:
+                    lines.append(current)
+
+        # Altura de la fila: margen superior + líneas * line_h + margen inferior
+        row_h = max(40, 12 + len(lines) * line_h + 8)
         row_top = y
         row_bottom = row_top - row_h
 
-        es_ganador = pz.get("votos", 0) == max_votos and max_votos > 0
+        es_ganador = pz.get("planilla") == ganador_nombre
 
+        # Fondo alterno y resaltado del ganador
         if i % 2 == 0:
             contenido.append(f"q 0.975 0.985 0.995 rg 36 {row_bottom:.2f} 523 {row_h} re f Q")
-
         if es_ganador:
-            contenido.append(f"q 0.90 0.98 0.93 rg 36 {row_bottom:.2f} 523 {row_h} re f Q")
+            contenido.append(f"q 0.85 0.98 0.92 rg 36 {row_bottom:.2f} 523 {row_h} re f Q")
             contenido.append("q 0.66 0.86 0.72 RG 0.7 w 36 {:.2f} 523 {:.2f} re S Q".format(row_bottom, row_h))
         else:
             contenido.append("q 0.86 0.91 0.95 RG 0.5 w 36 {:.2f} 523 {:.2f} re S Q".format(row_bottom, row_h))
 
-        nombre_plan = str(pz.get("planilla", "N/D"))[:14]
-        expr = str(pz.get("expresion_politica", "") or "")[:24]
+        # Texto de la planilla y expresión política
+        font_style = "F2" if es_ganador else "F1"
+        nombre_plan = str(pz.get("planilla", "N/D"))[:20]
+        expr = str(pz.get("expresion_politica", "") or "")[:30]
+
+        # Posición Y centrada verticalmente en la celda
+        text_y_center = row_top - (row_h / 2) - 3
+        contenido.append(t(x_plan, text_y_center, nombre_plan, font_style, base_font_size))
+        contenido.append(t(x_expr, text_y_center, expr, font_style, base_font_size))
+
+        # Candidatos multilínea (alineados arriba)
+        cand_y = row_top - 12
+        for line in lines:
+            contenido.append(t(x_cands, cand_y, line, font_style, base_font_size - 1))
+            cand_y -= line_h
+
+        # Votos, % y Delegados (centrados verticalmente)
         votos = money(pz.get("votos", 0))
         pct = f"{_to_float(pz.get('porcentaje', 0), 0):.2f}%"
         dg = money(pz.get("delegados_ganados", 0))
 
-        font = "F2" if es_ganador else "F1"
-        text_y = row_top - 17
-        contenido.append(t(x_plan, text_y, nombre_plan, font, 10))
-        contenido.append(t(x_expr, text_y, expr, font, 10))
-        for idx_line, line in enumerate(cand_lines):
-            contenido.append(t(x_cands, text_y - (idx_line * line_h), line, font, 10))
-
-        # Centrar votos/% respecto al bloque de candidatos multi-linea.
-        y_center = row_bottom + (row_h / 2) - 2
-        contenido.append(t_right(x_votos_r, y_center, votos, font, 10))
-        contenido.append(t_right(x_pct_r, y_center, pct, font, 10))
-        contenido.append("0.72 0.12 0.12 rg")
-        contenido.append(t_right(x_dg_r, y_center, dg, "F2", 10))
-        contenido.append("0 0 0 rg")
+        contenido.append(t_right(x_votos_r, text_y_center, votos, font_style, base_font_size))
+        contenido.append(t_right(x_pct_r, text_y_center, pct, font_style, base_font_size))
+        if es_ganador:
+            contenido.append("0.72 0.12 0.12 rg")
+        contenido.append(t_right(x_dg_r, text_y_center, dg, "F2", base_font_size))
+        if es_ganador:
+            contenido.append("0 0 0 rg")
 
         y = row_bottom - 2
+        # Seguridad: evitar que la tabla se salga de la página
+        if y < 200:
+            break
 
-    if len(planillas) > max_rows:
-        contenido.append(t(44, y + 2, f"... {len(planillas) - max_rows} planilla(s) mas", "F1", 9))
-        y -= 18
+    # ================= FIN TABLA =================
 
-    # Bloque inferior: resumen y grafica (sin encimar)
+    # Sección inferior: Resumen (izquierda) y Gráfica (derecha)
     section_top = y - 12
     left_x = 36
     left_w = 275
@@ -366,7 +398,7 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     section_h = 230
     section_bottom = section_top - section_h
 
-    # Resumen izquierdo
+    # Resumen (sin Delegados totales)
     contenido.append(t(left_x, section_top + 8, "RESUMEN", "F2", 12))
     contenido.append(f"q 0.99 0.995 1 rg {left_x} {section_bottom:.2f} {left_w} {section_h-6} re f Q")
     contenido.append(f"q 0.78 0.86 0.93 RG 1 w {left_x} {section_bottom:.2f} {left_w} {section_h-6} re S Q")
@@ -376,59 +408,54 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         ("Votos nulos", resumen.get("votos_nulos", 0)),
         ("Abstenciones", resumen.get("abstenciones", 0)),
         ("Boletas no usadas", resumen.get("boletas_no_usadas", 0)),
-        ("Delegados totales", resumen.get("delegados_totales", 0)),
         ("Padron sindicato", resumen.get("total_padron_sindicato", 0)),
     ]
     ry = section_top - 20
     for label, value in resumen_lineas:
-        if label == "Delegados totales":
-            contenido.append("0.72 0.12 0.12 rg")
-            contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
-            contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F2", 10))
-            contenido.append("0 0 0 rg")
-        else:
-            contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
-            contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F1", 10))
+        contenido.append(t(left_x + 12, ry, f"{label}:", "F2", 10))
+        contenido.append(t_right(left_x + left_w - 14, ry, money(value), "F1", 10))
         ry -= 18
 
-    # Seccion explicita de delegados: total en disputa + ganados por planilla
+    # Sección de Delegados (muestra todas las planillas con sus delegados ganados)
     delg_top = section_bottom + 10
-    delg_h = 86
+    # Calcular altura necesaria según cantidad de planillas (máximo 8 para no salirse)
+    visibles_deleg = planillas[:8]
+    delg_lines = len(visibles_deleg)
+    delg_h = max(70, 16 + delg_lines * 12)
     contenido.append(f"q 0.99 0.97 0.97 rg {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re f Q")
     contenido.append(f"q 0.92 0.72 0.72 RG 0.8 w {left_x + 8} {delg_top:.2f} {left_w - 16} {delg_h} re S Q")
     contenido.append(t(left_x + 14, delg_top + delg_h - 16, "DELEGADOS", "F2", 10))
-    contenido.append(t(left_x + 14, delg_top + delg_h - 32, "Totales en disputa:", "F2", 9))
+    contenido.append(t(left_x + 14, delg_top + delg_h - 32, "Total en disputa:", "F2", 9))
     contenido.append("0.72 0.12 0.12 rg")
     contenido.append(t_right(left_x + left_w - 22, delg_top + delg_h - 32, money(resumen.get("delegados_totales", 0)), "F2", 9))
     contenido.append("0 0 0 rg")
 
     dy = delg_top + delg_h - 52
-    visibles = planillas[:2]
-    for pz in visibles:
-        nom = str(pz.get("planilla", "N/D"))[:12]
+    for pz in visibles_deleg:
+        nom = str(pz.get("planilla", "N/D"))[:16]
         dg = money(pz.get("delegados_ganados", 0))
         contenido.append(t(left_x + 14, dy, f"{nom}:", "F1", 8))
         contenido.append("0.72 0.12 0.12 rg")
         contenido.append(t_right(left_x + left_w - 22, dy, dg, "F2", 8))
         contenido.append("0 0 0 rg")
         dy -= 12
-    restantes = max(0, len(planillas) - len(visibles))
-    if restantes > 0:
-        contenido.append(t(left_x + 14, dy, f"... +{restantes} planillas", "F1", 8))
+    if len(planillas) > len(visibles_deleg):
+        contenido.append(t(left_x + 14, dy, f"... +{len(planillas) - len(visibles_deleg)} planillas más", "F1", 8))
 
-    # Grafica derecha
+    # Gráfica de pastel (mejorada con verde para ganador)
     contenido.append(t(right_x, section_top + 8, "GRAFICA DE PASTEL (VOTOS POR PLANILLA)", "F2", 9))
     contenido.append(f"q 0.99 0.995 1 rg {right_x} {section_bottom:.2f} {right_w} {section_h-6} re f Q")
     contenido.append(f"q 0.78 0.86 0.93 RG 1 w {right_x} {section_bottom:.2f} {right_w} {section_h-6} re S Q")
 
     pie_values = [max(0, _to_int(pz.get("votos"), 0)) for pz in planillas[:5]]
-    pie_colors = [
-        (0.10, 0.64, 0.78),
-        (0.18, 0.74, 0.39),
-        (0.98, 0.63, 0.12),
-        (0.93, 0.36, 0.34),
-        (0.56, 0.44, 0.84),
-    ]
+    # Colores: verde para ganador, luego paleta fija
+    pie_colors = []
+    for idx, pz in enumerate(planillas[:5]):
+        if ganador_nombre and pz.get("planilla") == ganador_nombre:
+            pie_colors.append((0.18, 0.74, 0.39))  # verde fuerte
+        else:
+            paleta = [(0.10, 0.64, 0.78), (0.98, 0.63, 0.12), (0.93, 0.36, 0.34), (0.56, 0.44, 0.84)]
+            pie_colors.append(paleta[idx % len(paleta)])
 
     pie_cx = right_x + 65
     pie_cy = section_bottom + 88
@@ -448,11 +475,16 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         contenido.append(t(bx + 12, ley_y, f"{nombre_p}: {votos_p} ({pct_p:.1f}%)", "F1", 8))
         ley_y -= 13
 
-    # Pie de pagina
-    contenido.append(t(36, 24, "Documento generado automaticamente por el sistema de captura.", "F1", 9))
+    # ================= PIE DE PÁGINA (amarillo con azul) =================
+    pie_y = 30
+    contenido.append("q 1 0.882 0 rg 0 0 595 36 re f Q")  # fondo amarillo
+    contenido.append("0 0 0.502 rg")  # azul marino
+    contenido.append(t(36, pie_y, "Documento generado automaticamente por el sistema de captura.", "F2", 9))
+    contenido.append(t(36, pie_y - 12, "STUNAM - Resultados CGR XXII", "F1", 8))
+    contenido.append("0 0 0 rg")  # restaurar negro
 
+    # Generar PDF
     stream = "\n".join(contenido).encode("latin-1", errors="replace")
-
     objs = []
     objs.append(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
     objs.append(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")

@@ -197,8 +197,8 @@
         <section class="candidates-section">
             <h3>Desglose por Planilla</h3>
             <div class="delegados-total-banner">
-                <span class="delegados-total-label">Delegados Totales en Disputa</span>
-                <span class="delegados-total-value">{{ r.resumen.delegados_totales | default(0, true) }}</span>
+                <span class="delegados-total-label delegados-inline-red">Delegados Totales en Disputa</span>
+                <span class="delegados-total-value delegados-inline-red">{{ r.resumen.delegados_totales | default(0, true) }}</span>
             </div>
             {% if r.planillas %}
             <table class="candidates-table">

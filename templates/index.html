@@ -87,34 +87,97 @@
         </div>
     </div>
 
-    <div class="card-body">
-        <section class="resumen-container">
-            <h3>Datos del ganador</h3>
-            <div class="puntos-grid">
-            
-                {% if r.candidatos %}
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">1- Planilla ganadora:</span><br><br>{% if r.empate %}{% for g in r.ganadores %}{{ g.planilla }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ r.ganador.planilla if r.ganador else "N/D" }}{% endif %}</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Expresion politica:</span><br><br>{% if r.empate %}{% for g in r.ganadores %}{{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}{% endif %}</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">3- Votos ganador:</span><br><br>{{ r.ganador.votos | default(0, true) if r.ganador else 0 }}</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">4- Porcentaje ganador:</span><br><br>{{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">5- Delegados ganados:</span><br><br><span class="delegados-ganados-red">{{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}</span></div>
-                {% else %}
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">1- Planilla:</span><br>N/D</div>
-                <div class="punto-item winner-panel"><span class="punto-num point-badge-win">2- Candidato:</span><br>N/D</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">3- Votos:</span><br>0</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">4- Porcentaje:</span><br>0%</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">5- Delegados ganados:</span><br><br><span class="delegados-ganados-red">0</span></div>
-                {% endif %}
-            </div>
+   <section class="winner-summary-section">
 
-            <div class="votos-lista">
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">6- Votos totales:</span><br><br>{{ r.resumen.votos_totales | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">7- Votos nulos:</span><br><br>{{ r.resumen.votos_nulos | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">8- Abstenciones:</span><br><br>{{ r.resumen.abstenciones | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">9- Boletas no usadas:</span><br><br>{{ r.resumen.boletas_no_usadas | default(0, true) }}</div>
-                <div class="punto-item votes-panel"><span class="punto-num point-badge-votes">10- Total padron sindicato:</span><br><br>{{ r.resumen.total_padron_sindicato | default(0, true) }}</div>
-            </div>
-        </section>
+    <h3>Resumen del Ganador</h3>
+
+    <div class="winner-banner">
+        <span class="winner-banner-label">
+            Planilla Ganadora
+        </span>
+
+        <span class="winner-banner-value">
+            {% if r.empate %}
+                {% for g in r.ganadores %}
+                    {{ g.planilla }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            {% else %}
+                {{ r.ganador.planilla if r.ganador else "N/D" }}
+            {% endif %}
+        </span>
+    </div>
+
+
+    <table class="winner-summary-table">
+
+        <tbody>
+
+            <tr>
+                <td>Expresión política</td>
+                <td>
+                    {% if r.empate %}
+                        {% for g in r.ganadores %}
+                            {{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}
+                    {% endif %}
+                </td>
+            </tr>
+
+            <tr>
+                <td>Votos ganador</td>
+                <td>
+                    {{ r.ganador.votos | default(0, true) if r.ganador else 0 }}
+                </td>
+            </tr>
+
+            <tr>
+                <td>Porcentaje</td>
+                <td>
+                    {{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }} %
+                </td>
+            </tr>
+
+            <tr>
+                <td>Delegados ganados</td>
+                <td>
+                    <span class="delegados-inline-red">
+                        {{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}
+                    </span>
+                </td>
+            </tr>
+
+            <tr>
+                <td>Votos totales</td>
+                <td>{{ r.resumen.votos_totales | default(0, true) }}</td>
+            </tr>
+
+            <tr>
+                <td>Votos nulos</td>
+                <td>{{ r.resumen.votos_nulos | default(0, true) }}</td>
+            </tr>
+
+            <tr>
+                <td>Abstenciones</td>
+                <td>{{ r.resumen.abstenciones | default(0, true) }}</td>
+            </tr>
+
+            <tr>
+                <td>Boletas no usadas</td>
+                <td>{{ r.resumen.boletas_no_usadas | default(0, true) }}</td>
+            </tr>
+
+            <tr>
+                <td>Total padrón sindicato</td>
+                <td>{{ r.resumen.total_padron_sindicato | default(0, true) }}</td>
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</section>
 
         <section class="candidates-section">
             <h3>Desglose por Planilla</h3>
@@ -147,7 +210,6 @@
             <h4>Comparativo de votos</h4>
             <canvas id="chart{{ loop.index }}"></canvas>
         </aside>
-    </div>
 </article>
 {% endfor %}
 </main>

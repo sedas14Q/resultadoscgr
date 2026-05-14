@@ -657,8 +657,8 @@ header h1 {
     background: var(--surface-soft);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 18px 18px 10px;
-    height: 420px;
+    padding: 14px 14px 12px;
+    height: 340px;
 }
 
 .chart-panel h4 {
@@ -839,7 +839,7 @@ header h1 {
     }
 
     .chart-panel {
-        height: 340px;
+        height: 300px;
     }
 
     .winner-stats-grid {

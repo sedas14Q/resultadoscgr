@@ -167,6 +167,9 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: { bottom: 50 },
+        },
         animation: {
           duration: 650,
           easing: "easeOutQuart",

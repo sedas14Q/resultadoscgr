@@ -203,12 +203,10 @@ def _pie_wedge_points(cx: float, cy: float, r: float, a0: float, a1: float, step
         pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
     return pts
 
-
 def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: list[tuple[float, float, float]]) -> list[str]:
     total = sum(max(0.0, float(v)) for v in values)
     if total <= 0:
         return []
-
     cmds: list[str] = []
     ang = -math.pi / 2
     for idx, v in enumerate(values):
@@ -226,8 +224,7 @@ def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: l
             cmds.append(f"{x:.2f} {y:.2f} l")
         cmds.append("h f Q")
         ang = next_ang
-
-        # Contorno con pol?gono circular para compatibilidad amplia PDF
+    # Borde exterior
     ring_pts = _pie_wedge_points(cx, cy, r, 0, 2 * math.pi, 48)[1:]
     if ring_pts:
         cmds.append("q 0.35 0.45 0.60 RG 0.8 w")
@@ -236,9 +233,7 @@ def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: l
         for x, y in ring_pts[1:]:
             cmds.append(f"{x:.2f} {y:.2f} l")
         cmds.append("h S Q")
-
     return cmds
-
 
 def _armar_pdf_acta(acta: dict) -> bytes:
     candidatos = normalizar_candidatos((acta or {}).get("candidatos"))

@@ -80,37 +80,6 @@
     window.location.reload();
   }
 
-  async function editarActa(card) {
-    const cred = await pedirAutorizacion();
-    if (!cred) return;
-
-    const actaId = Number(card.getAttribute("data-id") || 0);
-    if (!actaId) return;
-
-    const numeroActual = card.getAttribute("data-numero") || "";
-    const nombreActual = card.getAttribute("data-nombre") || "";
-    const fechaActual = card.getAttribute("data-fecha") || "";
-
-    const numero = window.prompt("Numero de dependencia:", numeroActual);
-    if (numero === null) return;
-    const nombre = window.prompt("Nombre de dependencia:", nombreActual);
-    if (nombre === null) return;
-    const fecha = window.prompt("Fecha (YYYY-MM-DD):", fechaActual);
-    if (fecha === null) return;
-
-    const res = await fetch(`/api/actas/${actaId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...cred, numero, nombre, fecha }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.status !== "ok") {
-      alert((json && json.mensaje) || "No se pudo actualizar el acta.");
-      return;
-    }
-    window.location.reload();
-  }
-
   function descargarPdfActa(card) {
     const actaId = Number(card.getAttribute("data-id") || 0);
     if (!actaId) {

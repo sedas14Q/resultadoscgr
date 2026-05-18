@@ -294,10 +294,9 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(44, 725, "FECHA", "F2", 7))
     contenido.append(t(44, 712, acta.get('fecha') or 'Sin fecha', "F1", 8))
 
-    # CAPTURISTA
-    contenido.append(t(44, 695, "CAPTURISTA", "F2", 7))
-    contenido.append(t(44, 682, acta.get('capturista') or 'N/D', "F1", 8))
-
+    # CAPTURISTA alado de fecha
+    contenido.append(t(420, 757, "CAPTURISTA", "F2", 7)) 
+    contenido.append(t(420, 749, acta.get('capturista') or 'N/D', "F1", 8))
     # ===================== TABLE =====================
     y_top = 728
     contenido.append(t(36, y_top, "PLANILLAS PARTICIPANTES", "F2", 11))
@@ -521,41 +520,6 @@ def _armar_pdf_acta(acta: dict) -> bytes:
         ).encode("ascii")
     )
     return bytes(pdf)
-
-
-def _enviar_pdf_correo(destinatario: str, acta: dict, pdf_bytes: bytes) -> tuple[bool, str]:
-    host = os.getenv("SMTP_HOST", "").strip()
-    try:
-        puerto = int(os.getenv("SMTP_PORT", "587"))
-    except ValueError:
-        return False, "SMTP_PORT debe ser numerico."
-    usuario = os.getenv("SMTP_USER", "").strip()
-    contrasena = os.getenv("SMTP_PASSWORD", "")
-    remitente = os.getenv("SMTP_FROM", usuario).strip()
-    usar_tls = os.getenv("SMTP_TLS", "1").strip() not in {"0", "false", "False"}
-
-    if not host or not remitente:
-        return False, "SMTP no configurado. Define SMTP_HOST y SMTP_FROM."
-
-    msg = EmailMessage()
-    msg["Subject"] = f"Acta #{acta.get('numero', 'N/D')} - {acta.get('nombre', 'Dependencia')}"
-    msg["From"] = remitente
-    msg["To"] = destinatario
-    msg.set_content("Se adjunta PDF del acta capturada.")
-    filename = f"acta_{acta.get('id', 'sin_id')}.pdf"
-    msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf", filename=filename)
-
-    try:
-        with smtplib.SMTP(host, puerto, timeout=20) as server:
-            if usar_tls:
-                server.starttls()
-            if usuario:
-                server.login(usuario, contrasena)
-            server.send_message(msg)
-    except Exception as exc:
-        return False, f"No se pudo enviar correo: {exc}"
-    return True, "Correo enviado"
-
 
 @app.after_request
 def add_cors_headers(response):

@@ -122,6 +122,31 @@
 
         </div>
 
+        {# Cantidad de nombres a mostrar = delegados ganados de la planilla ganadora #}
+        {% set dg = (r.ganador.delegados_ganados | default(0, true) if r.ganador else 0) | int %}
+        {% set ns = namespace(delegados_nombres=[]) %}
+        {% if r.ganador and dg > 0 %}
+            {# Tomar solo los primeros dg candidatos validos #}
+            {% for nombre in (r.ganador.candidatos | default([], true)) %}
+                {% set n = (nombre | string | trim) %}
+                {% if n and n != "Sin nombre" and (ns.delegados_nombres | length) < dg %}
+                    {% set _ = ns.delegados_nombres.append(n) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        <div class="winner-side">
+            <span class="winner-mini-label">
+                Nombre de los Delegados ganadores
+            </span>
+            <span class="winner-mini-value delegados-inline-red">
+                {% if ns.delegados_nombres %}
+                    {{ ns.delegados_nombres | join(", ") }}
+                {% else %}
+                    N/D
+                {% endif %}
+            </span>
+        </div>
+
     </div>
 
 
@@ -153,9 +178,9 @@
                 {{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%
             </strong>
         </div>
-
+<!--Informacion adicional -->
         <div class="winner-stat-box">
-            <span>Votos totales validos</span>
+            <span>Votos totales adjudicados</span>
             <strong>
                 {{ r.resumen.votos_totales | default(0, true) }}
             </strong>

@@ -245,7 +245,13 @@
                         <ul class="candidatos-list">
                             {% set dg_planilla = (p.delegados_ganados | default(0, true)) | int %}
                             {% for nombre in p.candidatos %}
-                                <li class="{% if dg_planilla > 0 and loop.index <= dg_planilla %}candidato-ganador{% endif %}">{{ nombre }}</li>
+                                <li class="{% if dg_planilla > 0 and loop.index <= dg_planilla %}candidato-ganador{% endif %}">
+                                    {% if dg_planilla > 0 and loop.index <= dg_planilla %}
+                                        <span class="candidato-ganador-marca">{{ nombre }}</span>
+                                    {% else %}
+                                        {{ nombre }}
+                                    {% endif %}
+                                </li>
                             {% endfor %}
                         </ul>
                     </td>

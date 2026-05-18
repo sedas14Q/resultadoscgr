@@ -440,14 +440,27 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     setRGB(0, 0, 0)
 
     dy = dl_y - 32
+
     for pz in visibles_deleg:
-        nom = str(pz.get("planilla", "N/D"))[:14]
-        dg = money(pz.get("delegados_ganados", 0))
-        contenido.append(t(lx + 14, dy, nom, "F1", 7))
-        setRGB(*Gn)
-        contenido.append(t_right(lx + lw - 14, dy, dg, "F2", 8))
-        setRGB(0, 0, 0)
-        dy -= 11
+    nom = str(pz.get("planilla", "N/D"))[:14]
+    dg = _to_int(pz.get("delegados_ganados", 0), 0)
+    contenido.append(t(lx + 14, dy, nom, "F1", 7))
+    # Solo ganadores en rojo
+    if dg > 0:
+        setRGB(0.85, 0.15, 0.15)   # rojo
+    else:
+        setRGB(0, 0, 0)            # negro
+
+    contenido.append(t_right(
+        lx + lw - 14,
+        dy,
+        str(dg),
+        "F2",
+        8
+    ))
+
+    setRGB(0, 0, 0)
+    dy -= 11
     if len(planillas) > len(visibles_deleg):
         contenido.append(t(lx + 14, dy, f"... +{len(planillas) - len(visibles_deleg)} planillas", "F1", 7))
 

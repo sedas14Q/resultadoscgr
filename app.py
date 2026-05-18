@@ -696,30 +696,6 @@ def descargar_pdf_acta(acta_id: int):
         },
     )
 
-
-@app.route("/api/actas/<int:acta_id>/correo", methods=["POST", "OPTIONS"])
-def enviar_pdf_acta_correo(acta_id: int):
-    if request.method == "OPTIONS":
-        return ("", 204)
-
-    payload = request.get_json(silent=True) or {}
-    correo = _safe_text(payload.get("correo"))
-    if not correo or "@" not in correo:
-        return jsonify({"status": "error", "mensaje": "Correo invalido"}), 400
-
-    acta = db.obtener_por_id(acta_id)
-    if not acta:
-        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
-
-    pdf = _armar_pdf_acta(acta)
-    ok, mensaje = _enviar_pdf_correo(correo, acta, pdf)
-    if not ok:
-        return jsonify({"status": "error", "mensaje": mensaje}), 500
-    return jsonify({"status": "ok", "mensaje": mensaje})
-
-
-
-
 @app.route("/api/actas/<int:acta_id>", methods=["PUT", "OPTIONS"])
 def actualizar_acta_manual(acta_id: int):
     if request.method == "OPTIONS":

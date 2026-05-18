@@ -388,15 +388,14 @@ header h1 {
 }
 
 .winner-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 2fr 1fr 2fr;
+    align-items: stretch;
     gap: 12px;
     margin-bottom: 16px;
 }
 
 .winner-main {
-    flex: 1;
     background: var(--accent-soft);
     border: 1px solid #bce8cf;
     border-radius: var(--radius);
@@ -891,8 +890,7 @@ header h1 {
     }
 
     .winner-banner {
-        flex-direction: column;
-        align-items: stretch;
+        grid-template-columns: 1fr;
     }
 
     .winner-main,

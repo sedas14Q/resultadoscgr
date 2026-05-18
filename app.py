@@ -442,10 +442,10 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     dy = dl_y - 32
 
     for pz in visibles_deleg:
-    nom = str(pz.get("planilla", "N/D"))[:14]
-    dg = _to_int(pz.get("delegados_ganados", 0), 0)
-    contenido.append(t(lx + 14, dy, nom, "F1", 7))
-    # Solo ganadores en rojo
+        nom = str(pz.get("planilla", "N/D"))[:14]
+        dg = _to_int(pz.get("delegados_ganados", 0), 0)
+        contenido.append(t(lx + 14, dy, nom, "F1", 7))
+     # Solo ganadores en rojo
     if dg > 0:
         setRGB(0.85, 0.15, 0.15)   # rojo
     else:

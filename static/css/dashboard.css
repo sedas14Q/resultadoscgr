@@ -649,7 +649,7 @@ header h1 {
 }
 
 .candidates-table tbody tr.row-normal td:nth-child(4) {
-    color: #0f6f4c !important;
+    color: var(--text) !important;
     font-weight: 700;
 }
 

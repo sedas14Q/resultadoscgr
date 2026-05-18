@@ -279,26 +279,26 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(t(42, 793, "STUNAM - CONGRESO GENERAL DE REPRESENTANTES XXII", "F1", 10))
     contenido.append(t_right(553, 816, f"ID #{acta.get('id', 'N/D')}", "F2", 11))
     setRGB(0, 0, 0)
-
     # ===================== INFO BAR =====================
-    contenido.append("q 0.96 0.97 0.98 rg 36 700 523 70 re f Q")
-    contenido.append(f"q {N[0]:.2f} {N[1]:.2f} {N[2]:.2f} RG 0.5 w 36 700 523 70 re S Q")
+    # Caja más alta para evitar colisiones
+    contenido.append("q 0.96 0.97 0.98 rg 36 660 523 90 re f Q")
+    contenido.append(f"q {N[0]:.2f} {N[1]:.2f} {N[2]:.2f} RG 0.5 w 36 660 523 90 re S Q")
 
     dep = f"{(acta.get('numero') or 'N/D')} - {(acta.get('nombre') or 'N/D')}"
 
     # DEPENDENCIA
-    contenido.append(t(44, 755, "DEPENDENCIA", "F2", 7))
-    contenido.append(t(44, 742, dep, "F1", 8))
+    contenido.append(t(44, 735, "DEPENDENCIA", "F2", 7))
+    contenido.append(t(44, 720, dep, "F1", 8))
 
-    # FECHA
-    contenido.append(t(44, 725, "FECHA", "F2", 7))
-    contenido.append(t(44, 712, acta.get('fecha') or 'Sin fecha', "F1", 8))
+    # FECHA (izquierda)
+    contenido.append(t(44, 695, "FECHA", "F2", 7))
+    contenido.append(t(44, 680, acta.get('fecha') or 'Sin fecha', "F1", 8))
 
-    # CAPTURISTA alado de fecha
-    contenido.append(t(420, 757, "CAPTURISTA", "F2", 7)) 
-    contenido.append(t(420, 749, acta.get('capturista') or 'N/D', "F1", 8))
+    # CAPTURISTA (al lado de FECHA)
+    contenido.append(t(300, 695, "CAPTURISTA", "F2", 7))
+    contenido.append(t(300, 680, acta.get('capturista') or 'N/D', "F1", 8))
     # ===================== TABLE =====================
-    y_top = 728
+    y_top = 645
     contenido.append(t(36, y_top, "PLANILLAS PARTICIPANTES", "F2", 11))
 
     head_top = y_top - 14

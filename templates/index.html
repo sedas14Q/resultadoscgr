@@ -243,8 +243,9 @@
                     <td>{{ p.expresion_politica or 'N/D' }}</td>
                     <td class="candidatos-cell">
                         <ul class="candidatos-list">
+                            {% set dg_planilla = (p.delegados_ganados | default(0, true)) | int %}
                             {% for nombre in p.candidatos %}
-                                <li>{{ nombre }}</li>
+                                <li class="{% if dg_planilla > 0 and loop.index <= dg_planilla %}candidato-ganador{% endif %}">{{ nombre }}</li>
                             {% endfor %}
                         </ul>
                     </td>

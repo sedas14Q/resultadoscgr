@@ -633,6 +633,22 @@ header h1 {
 
 /* Estilos de filas según resultado */
 .candidates-table tbody tr.row-win td {
+    font-weight: 700;
+}
+
+.candidates-table tbody tr.row-win td:nth-child(1),
+.candidates-table tbody tr.row-win td:nth-child(2),
+.candidates-table tbody tr.row-win td:nth-child(4),
+.candidates-table tbody tr.row-win td:nth-child(5) {
+    color: #0f6f4c !important;
+}
+
+.candidates-table tbody tr.row-win td:nth-child(3),
+.candidates-table tbody tr.row-win td:nth-child(3) .candidatos-list li {
+    color: var(--text) !important;
+}
+
+.candidatos-list li.candidato-ganador {
     color: #0f6f4c !important;
     font-weight: 700;
 }

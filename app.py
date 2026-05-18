@@ -281,15 +281,22 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     setRGB(0, 0, 0)
 
     # ===================== INFO BAR =====================
-    contenido.append("q 0.96 0.97 0.98 rg 36 744 523 22 re f Q")
-    contenido.append(f"q {N[0]:.2f} {N[1]:.2f} {N[2]:.2f} RG 0.5 w 36 744 523 22 re S Q")
+    contenido.append("q 0.96 0.97 0.98 rg 36 700 523 70 re f Q")
+    contenido.append(f"q {N[0]:.2f} {N[1]:.2f} {N[2]:.2f} RG 0.5 w 36 700 523 70 re S Q")
+
     dep = f"{(acta.get('numero') or 'N/D')} - {(acta.get('nombre') or 'N/D')}"
-    contenido.append(t(44, 757, "DEPENDENCIA", "F2", 7))
-    contenido.append(t(44, 749, dep, "F1", 8))
-    contenido.append(t(256, 757, "FECHA", "F2", 7))
-    contenido.append(t(256, 749, acta.get('fecha') or 'Sin fecha', "F1", 8))
-    contenido.append(t(420, 757, "CAPTURISTA", "F2", 7))
-    contenido.append(t(420, 749, acta.get('capturista') or 'N/D', "F1", 8))
+
+    # DEPENDENCIA
+    contenido.append(t(44, 755, "DEPENDENCIA", "F2", 7))
+    contenido.append(t(44, 742, dep, "F1", 8))
+
+    # FECHA
+    contenido.append(t(44, 725, "FECHA", "F2", 7))
+    contenido.append(t(44, 712, acta.get('fecha') or 'Sin fecha', "F1", 8))
+
+    # CAPTURISTA
+    contenido.append(t(44, 695, "CAPTURISTA", "F2", 7))
+    contenido.append(t(44, 682, acta.get('capturista') or 'N/D', "F1", 8))
 
     # ===================== TABLE =====================
     y_top = 728

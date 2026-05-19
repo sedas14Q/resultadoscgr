@@ -20,6 +20,12 @@
   const authCancel = document.getElementById("auth-cancel");
   const authConfirm = document.getElementById("auth-confirm");
 
+  const resultadoModal = document.getElementById("resultado-modal");
+  const resultadoIcon = document.getElementById("resultado-icon");
+  const resultadoTitle = document.getElementById("resultado-title");
+  const resultadoMsg = document.getElementById("resultado-msg");
+  const resultadoClose = document.getElementById("resultado-close");
+
   function pedirAutorizacion() {
     return new Promise((resolve) => {
       if (!authModal) {
@@ -28,6 +34,7 @@
       }
 
       authModal.style.display = "flex";
+      document.body.style.overflow = "hidden";
       authUsuario.value = "";
       authContrasena.value = "";
       authMsg.textContent = "";
@@ -35,6 +42,7 @@
 
       function limpiar() {
         authModal.style.display = "none";
+        document.body.style.overflow = "";
         authConfirm.removeEventListener("click", onConfirm);
         authCancel.removeEventListener("click", onCancel);
       }
@@ -67,17 +75,45 @@
     const actaId = Number(card.getAttribute("data-id") || 0);
     if (!actaId) return;
 
-    const res = await fetch(`/api/actas/${actaId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cred),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.status !== "ok") {
-      alert((json && json.mensaje) || "No se pudo eliminar el acta.");
-      return;
+    try {
+      const res = await fetch(`/api/actas/${actaId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cred),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.status !== "ok") {
+        mostrarResultadoModal("error", (json && json.mensaje) || "No se pudo eliminar el acta.");
+        return;
+      }
+      mostrarResultadoModal("exitoso", "Acta eliminada correctamente.");
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (e) {
+      mostrarResultadoModal("error", "Error de conexión al eliminar el acta.");
     }
-    window.location.reload();
+  }
+
+  function mostrarResultadoModal(tipo, mensaje) {
+    if (!resultadoModal) return;
+
+    resultadoIcon.textContent = tipo === "exitoso" ? "✓" : "✕";
+    resultadoTitle.textContent = tipo === "exitoso" ? "Eliminación Exitosa" : "Error";
+    resultadoMsg.textContent = mensaje;
+    resultadoModal.className = "resultado-modal " + (tipo === "exitoso" ? "success" : "error");
+    resultadoModal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+
+    if (tipo === "exitoso") {
+      resultadoClose.style.display = "none";
+    } else {
+      resultadoClose.style.display = "block";
+    }
+  }
+
+  function cerrarResultadoModal() {
+    if (!resultadoModal) return;
+    resultadoModal.style.display = "none";
+    document.body.style.overflow = "";
   }
 
   function descargarPdfActa(card) {
@@ -419,6 +455,18 @@
   detectarDuplicados();
   activarAccionesActa();
   filtrarActas();
+
+  if (resultadoClose) {
+    resultadoClose.addEventListener("click", cerrarResultadoModal);
+  }
+
+  if (resultadoModal) {
+    resultadoModal.addEventListener("click", (e) => {
+      if (e.target === resultadoModal) {
+        cerrarResultadoModal();
+      }
+    });
+  }
 })();
 
 

@@ -808,6 +808,83 @@ header h1 {
     min-height: 18px;
 }
 
+/* Modal de resultado (exitoso/error) */
+.resultado-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 16px;
+}
+
+.resultado-box {
+    width: min(380px, 90%);
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-hover);
+    padding: 28px 24px;
+    display: grid;
+    gap: 14px;
+    text-align: center;
+    animation: fadeIn 0.25s ease;
+}
+
+.resultado-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.resultado-modal.success .resultado-icon {
+    background: #16a34a;
+}
+
+.resultado-modal.error .resultado-icon {
+    background: #b42318;
+}
+
+.resultado-box h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.resultado-box p {
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.resultado-box .action-btn {
+    justify-self: center;
+    margin-top: 6px;
+    min-width: 120px;
+}
+
+.resultado-modal.success .action-btn {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+}
+
+.resultado-modal.error .action-btn {
+    background: #b42318;
+    border-color: #b42318;
+    color: #fff;
+}
+
 /* Responsive mejorado */
 @media (max-width: 860px) {
     header {

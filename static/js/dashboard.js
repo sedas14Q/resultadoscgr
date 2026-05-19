@@ -70,7 +70,6 @@
   }
 
   let resultadoTimer = null;
-  let resultadoCountdown = null;
   let pendingDeleteCard = null;
 
   async function eliminarActa(card) {

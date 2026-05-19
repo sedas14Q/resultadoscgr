@@ -296,7 +296,10 @@
         <h3 id="resultado-title"></h3>
         <p id="resultado-msg"></p>
         <p id="resultado-countdown" class="resultado-countdown"></p>
-        <button id="resultado-close" type="button" class="action-btn">Cerrar</button>
+        <div class="resultado-actions">
+            <button id="resultado-retry" type="button" class="action-btn retry-btn">Reintentar</button>
+            <button id="resultado-accept" type="button" class="action-btn accept-btn">Aceptar</button>
+        </div>
     </div>
 </div>
 <script id="resultados-json" type="application/json">{{ resultados | tojson }}</script>

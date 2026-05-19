@@ -881,16 +881,51 @@ header h1 {
     min-width: 120px;
 }
 
-.resultado-modal.success .action-btn {
+.resultado-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.resultado-actions .retry-btn {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.resultado-actions .retry-btn:hover {
+    background: #1a7a99;
+}
+
+.resultado-actions .accept-btn {
     background: #16a34a;
     border-color: #16a34a;
     color: #fff;
 }
 
-.resultado-modal.error .action-btn {
+.resultado-actions .accept-btn:hover {
+    background: #15803d;
+}
+
+.resultado-modal.success .retry-btn {
+    display: none;
+}
+
+.resultado-modal.error .retry-btn {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.resultado-modal.error .accept-btn {
     background: #b42318;
     border-color: #b42318;
     color: #fff;
+}
+
+.resultado-modal.error .accept-btn:hover {
+    background: #921d14;
 }
 
 /* Responsive mejorado */

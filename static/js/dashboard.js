@@ -24,7 +24,8 @@
   const resultadoIcon = document.getElementById("resultado-icon");
   const resultadoTitle = document.getElementById("resultado-title");
   const resultadoMsg = document.getElementById("resultado-msg");
-  const resultadoClose = document.getElementById("resultado-close");
+  const resultadoRetry = document.getElementById("resultado-retry");
+  const resultadoAccept = document.getElementById("resultado-accept");
   const resultadoCountdown = document.getElementById("resultado-countdown");
 
   function pedirAutorizacion() {
@@ -112,8 +113,9 @@
     document.body.style.overflow = "hidden";
 
     if (tipo === "exitoso") {
-      resultadoClose.textContent = "Aceptar";
-      resultadoClose.style.display = "block";
+      resultadoRetry.style.display = "none";
+      resultadoAccept.textContent = "Aceptar";
+      resultadoAccept.style.display = "block";
       let segundos = 10;
       resultadoCountdown.textContent = `Se cerrará automáticamente en ${segundos} s`;
       resultadoCountdown.style.display = "block";
@@ -127,8 +129,10 @@
         }
       }, 1000);
     } else {
-      resultadoClose.textContent = "Reintentar";
-      resultadoClose.style.display = "block";
+      resultadoRetry.textContent = "Reintentar";
+      resultadoRetry.style.display = "block";
+      resultadoAccept.textContent = "Aceptar";
+      resultadoAccept.style.display = "block";
       resultadoCountdown.style.display = "none";
     }
   }
@@ -490,17 +494,19 @@
   activarAccionesActa();
   filtrarActas();
 
-  if (resultadoClose) {
-    resultadoClose.addEventListener("click", () => {
-      if (resultadoClose.textContent === "Reintentar") {
-        cerrarResultadoModal();
-        if (pendingDeleteCard) {
-          eliminarActa(pendingDeleteCard).catch(() => mostrarResultadoModal("error", "Error al eliminar acta."));
-        }
-      } else {
-        limpiarResultadoTimer();
-        window.location.reload();
+  if (resultadoRetry) {
+    resultadoRetry.addEventListener("click", () => {
+      cerrarResultadoModal();
+      if (pendingDeleteCard) {
+        eliminarActa(pendingDeleteCard).catch(() => mostrarResultadoModal("error", "Error al eliminar acta."));
       }
+    });
+  }
+
+  if (resultadoAccept) {
+    resultadoAccept.addEventListener("click", () => {
+      limpiarResultadoTimer();
+      window.location.reload();
     });
   }
 

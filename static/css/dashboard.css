@@ -867,6 +867,14 @@ header h1 {
     line-height: 1.5;
 }
 
+.resultado-countdown {
+    font-family: var(--font-mono);
+    font-size: 13px !important;
+    color: var(--primary) !important;
+    font-weight: 600;
+    margin-top: -6px;
+}
+
 .resultado-box .action-btn {
     justify-self: center;
     margin-top: 6px;

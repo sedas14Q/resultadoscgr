@@ -25,6 +25,7 @@
   const resultadoTitle = document.getElementById("resultado-title");
   const resultadoMsg = document.getElementById("resultado-msg");
   const resultadoClose = document.getElementById("resultado-close");
+  const resultadoCountdown = document.getElementById("resultado-countdown");
 
   function pedirAutorizacion() {
     return new Promise((resolve) => {
@@ -68,6 +69,10 @@
     });
   }
 
+  let resultadoTimer = null;
+  let resultadoCountdown = null;
+  let pendingDeleteCard = null;
+
   async function eliminarActa(card) {
     const cred = await pedirAutorizacion();
     if (!cred) return;
@@ -83,18 +88,22 @@
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.status !== "ok") {
-        mostrarResultadoModal("error", (json && json.mensaje) || "No se pudo eliminar el acta.");
+        pendingDeleteCard = card;
+        mostrarResultadoModal("error", (json && json.mensaje) || "No autorizado.");
         return;
       }
+      pendingDeleteCard = null;
       mostrarResultadoModal("exitoso", "Acta eliminada correctamente.");
-      setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
+      pendingDeleteCard = card;
       mostrarResultadoModal("error", "Error de conexión al eliminar el acta.");
     }
   }
 
   function mostrarResultadoModal(tipo, mensaje) {
     if (!resultadoModal) return;
+
+    limpiarResultadoTimer();
 
     resultadoIcon.textContent = tipo === "exitoso" ? "✓" : "✕";
     resultadoTitle.textContent = tipo === "exitoso" ? "Eliminación Exitosa" : "Error";
@@ -104,14 +113,40 @@
     document.body.style.overflow = "hidden";
 
     if (tipo === "exitoso") {
-      resultadoClose.style.display = "none";
-    } else {
+      resultadoClose.textContent = "Aceptar";
       resultadoClose.style.display = "block";
+      let segundos = 10;
+      resultadoCountdown.textContent = `Se cerrará automáticamente en ${segundos} s`;
+      resultadoCountdown.style.display = "block";
+      resultadoTimer = setInterval(() => {
+        segundos--;
+        if (segundos <= 0) {
+          limpiarResultadoTimer();
+          window.location.reload();
+        } else {
+          resultadoCountdown.textContent = `Se cerrará automáticamente en ${segundos} s`;
+        }
+      }, 1000);
+    } else {
+      resultadoClose.textContent = "Reintentar";
+      resultadoClose.style.display = "block";
+      resultadoCountdown.style.display = "none";
+    }
+  }
+
+  function limpiarResultadoTimer() {
+    if (resultadoTimer) {
+      clearInterval(resultadoTimer);
+      resultadoTimer = null;
+    }
+    if (resultadoCountdown) {
+      resultadoCountdown.textContent = "";
     }
   }
 
   function cerrarResultadoModal() {
     if (!resultadoModal) return;
+    limpiarResultadoTimer();
     resultadoModal.style.display = "none";
     document.body.style.overflow = "";
   }
@@ -457,7 +492,17 @@
   filtrarActas();
 
   if (resultadoClose) {
-    resultadoClose.addEventListener("click", cerrarResultadoModal);
+    resultadoClose.addEventListener("click", () => {
+      if (resultadoClose.textContent === "Reintentar") {
+        cerrarResultadoModal();
+        if (pendingDeleteCard) {
+          eliminarActa(pendingDeleteCard).catch(() => mostrarResultadoModal("error", "Error al eliminar acta."));
+        }
+      } else {
+        limpiarResultadoTimer();
+        window.location.reload();
+      }
+    });
   }
 
   if (resultadoModal) {

@@ -21,9 +21,9 @@
 </section>
 
 <section class="search-section">
-    <div class="search-box" style="display:flex; gap:10px; align-items:center; justify-content:flex-start;">
-        <button type="button" class="action-btn" onclick="window.history.back()">Regresar</button>
-        <button type="button" class="action-btn edit-btn" onclick="window.location.href='{{ url_for('dashboard') }}'">Dashboard</button>
+    <div class="search-box detail-nav-box">
+        <button type="button" class="action-btn detail-nav-btn" onclick="window.history.back()">Regresar</button>
+        <button type="button" class="action-btn edit-btn detail-nav-btn" onclick="window.location.href='{{ url_for('dashboard') }}'">Dashboard</button>
     </div>
 </section>
 
@@ -41,6 +41,13 @@
             {% if r.ganador %}
             {% if r.empate %}<span class="winner-badge">Empate: {% for g in r.ganadores %}{{ g.planilla }}{% if not loop.last %}, {% endif %}{% endfor %} - {{ r.ganador.votos if r.ganador else 0 }} votos</span>{% else %}<span class="winner-badge">Ganador: {{ r.ganador.planilla }} - {{ r.ganador.votos }} votos</span>{% endif %}
             {% endif %}
+            <details class="card-actions-menu">
+                <summary class="gear-btn" title="Acciones">⚙</summary>
+                <div class="card-actions-popover">
+                    <button class="action-btn pdf-btn" id="btn-pdf-acta" type="button">Descargar PDF</button>
+                    <button class="action-btn delete-btn" id="btn-delete-acta" type="button">Eliminar</button>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -183,5 +190,191 @@
 </section>
 </article>
 </main>
+
+<div id="auth-modal" class="auth-modal" style="display:none;">
+    <div class="auth-box">
+        <h3>Autorizacion requerida</h3>
+        <p>Ingresa usuario y contrasena para continuar.</p>
+        <input id="auth-usuario" type="text" placeholder="Usuario" autocomplete="off" />
+        <input id="auth-contrasena" type="password" placeholder="Contrasena" autocomplete="off" />
+        <div class="auth-actions">
+            <button id="auth-cancel" type="button" class="action-btn">Cancelar</button>
+            <button id="auth-confirm" type="button" class="action-btn edit-btn">Autorizar</button>
+        </div>
+        <div id="auth-msg" class="auth-msg"></div>
+    </div>
+</div>
+
+<div id="resultado-modal" class="resultado-modal" style="display:none;">
+    <div class="resultado-box">
+        <div id="resultado-icon" class="resultado-icon"></div>
+        <h3 id="resultado-title"></h3>
+        <p id="resultado-msg"></p>
+        <p id="resultado-countdown" class="resultado-countdown"></p>
+        <div class="resultado-actions">
+            <button id="resultado-retry" type="button" class="action-btn retry-btn">Reintentar</button>
+            <button id="resultado-accept" type="button" class="action-btn accept-btn">Aceptar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+  const card = document.querySelector(".card");
+  const deleteBtn = document.getElementById("btn-delete-acta");
+  const pdfBtn = document.getElementById("btn-pdf-acta");
+
+  const authModal = document.getElementById("auth-modal");
+  const authUsuario = document.getElementById("auth-usuario");
+  const authContrasena = document.getElementById("auth-contrasena");
+  const authMsg = document.getElementById("auth-msg");
+  const authCancel = document.getElementById("auth-cancel");
+  const authConfirm = document.getElementById("auth-confirm");
+
+  const resultadoModal = document.getElementById("resultado-modal");
+  const resultadoIcon = document.getElementById("resultado-icon");
+  const resultadoTitle = document.getElementById("resultado-title");
+  const resultadoMsg = document.getElementById("resultado-msg");
+  const resultadoRetry = document.getElementById("resultado-retry");
+  const resultadoAccept = document.getElementById("resultado-accept");
+  const resultadoCountdown = document.getElementById("resultado-countdown");
+
+  let resultadoTimer = null;
+
+  function pedirAutorizacion() {
+    return new Promise((resolve) => {
+      authModal.style.display = "flex";
+      document.body.style.overflow = "hidden";
+      authUsuario.value = "";
+      authContrasena.value = "";
+      authMsg.textContent = "";
+      authUsuario.focus();
+
+      function limpiar() {
+        authModal.style.display = "none";
+        document.body.style.overflow = "";
+        authConfirm.removeEventListener("click", onConfirm);
+        authCancel.removeEventListener("click", onCancel);
+      }
+
+      function onConfirm() {
+        const usuario = (authUsuario.value || "").trim();
+        const contrasena = (authContrasena.value || "").trim();
+        if (!usuario || !contrasena) {
+          authMsg.textContent = "Debes capturar usuario y contrasena.";
+          return;
+        }
+        limpiar();
+        resolve({ usuario, contrasena });
+      }
+
+      function onCancel() {
+        limpiar();
+        resolve(null);
+      }
+
+      authConfirm.addEventListener("click", onConfirm);
+      authCancel.addEventListener("click", onCancel);
+    });
+  }
+
+  function limpiarResultadoTimer() {
+    if (resultadoTimer) {
+      clearInterval(resultadoTimer);
+      resultadoTimer = null;
+    }
+    resultadoCountdown.textContent = "";
+  }
+
+  function mostrarResultadoModal(tipo, mensaje) {
+    limpiarResultadoTimer();
+    resultadoIcon.textContent = tipo === "exitoso" ? "✓" : "✕";
+    resultadoTitle.textContent = tipo === "exitoso" ? "Eliminacion Exitosa" : "Error";
+    resultadoMsg.textContent = mensaje;
+    resultadoModal.className = "resultado-modal " + (tipo === "exitoso" ? "success" : "error");
+    resultadoModal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+
+    if (tipo === "exitoso") {
+      resultadoRetry.style.display = "none";
+      resultadoAccept.style.display = "block";
+      let segundos = 6;
+      resultadoCountdown.style.display = "block";
+      resultadoCountdown.textContent = `Se redirigira al dashboard en ${segundos} s`;
+      resultadoTimer = setInterval(() => {
+        segundos--;
+        if (segundos <= 0) {
+          limpiarResultadoTimer();
+          window.location.href = "{{ url_for('dashboard') }}";
+        } else {
+          resultadoCountdown.textContent = `Se redirigira al dashboard en ${segundos} s`;
+        }
+      }, 1000);
+      return;
+    }
+
+    resultadoRetry.style.display = "block";
+    resultadoAccept.style.display = "block";
+    resultadoCountdown.style.display = "none";
+  }
+
+  async function eliminarActa() {
+    const cred = await pedirAutorizacion();
+    if (!cred || !card) return;
+    const actaId = Number(card.getAttribute("data-id") || 0);
+    if (!actaId) return;
+
+    try {
+      const res = await fetch(`/api/actas/${actaId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cred),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.status !== "ok") {
+        mostrarResultadoModal("error", (json && json.mensaje) || "No autorizado.");
+        return;
+      }
+      mostrarResultadoModal("exitoso", "Acta eliminada correctamente.");
+    } catch (_) {
+      mostrarResultadoModal("error", "Error de conexion al eliminar el acta.");
+    }
+  }
+
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
+      eliminarActa().catch(() => mostrarResultadoModal("error", "Error al eliminar acta."));
+    });
+  }
+
+  if (pdfBtn) {
+    pdfBtn.addEventListener("click", () => {
+      if (!card) return;
+      const actaId = Number(card.getAttribute("data-id") || 0);
+      if (!actaId) return;
+      window.open(`/api/actas/${actaId}/pdf`, "_blank");
+    });
+  }
+
+  resultadoRetry.addEventListener("click", () => {
+    resultadoModal.style.display = "none";
+    document.body.style.overflow = "";
+    eliminarActa().catch(() => mostrarResultadoModal("error", "Error al eliminar acta."));
+  });
+
+  resultadoAccept.addEventListener("click", () => {
+    limpiarResultadoTimer();
+    window.location.href = "{{ url_for('dashboard') }}";
+  });
+
+  resultadoModal.addEventListener("click", (e) => {
+    if (e.target === resultadoModal) {
+      resultadoModal.style.display = "none";
+      document.body.style.overflow = "";
+      limpiarResultadoTimer();
+    }
+  });
+})();
+</script>
 </body>
 </html>

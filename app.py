@@ -545,41 +545,52 @@ def add_cors_headers(response):
 def _armar_resultados_dashboard() -> list[dict]:
     resultados = []
     for acta in db.obtener_todas():
-        candidatos = normalizar_candidatos(acta.get("candidatos"))
-        resumen = normalizar_resumen(acta.get("resumen"))
-        planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
-
-        ganador = None
-        ganadores = []
-        empate = False
-        if planillas:
-            max_votos = max(p.get("votos", 0) for p in planillas)
-            ganadores = [p for p in planillas if p.get("votos", 0) == max_votos]
-            ganador = ganadores[0] if ganadores else None
-            empate = len(ganadores) > 1
-
-        resultados.append(
-            {
-                "id": acta.get("id"),
-                "numero": acta.get("numero"),
-                "nombre": acta.get("nombre"),
-                "fecha": acta.get("fecha"),
-                "capturista": acta.get("capturista"),
-                "candidatos": candidatos,
-                "planillas": planillas,
-                "ganador": ganador,
-                "ganadores": ganadores,
-                "empate": empate,
-                "resumen": resumen,
-            }
-        )
+        resultados.append(_armar_resultado_desde_acta(acta))
     return resultados
+
+
+def _armar_resultado_desde_acta(acta: dict) -> dict:
+    candidatos = normalizar_candidatos(acta.get("candidatos"))
+    resumen = normalizar_resumen(acta.get("resumen"))
+    planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
+
+    ganador = None
+    ganadores = []
+    empate = False
+    if planillas:
+        max_votos = max(p.get("votos", 0) for p in planillas)
+        ganadores = [p for p in planillas if p.get("votos", 0) == max_votos]
+        ganador = ganadores[0] if ganadores else None
+        empate = len(ganadores) > 1
+
+    return {
+        "id": acta.get("id"),
+        "numero": acta.get("numero"),
+        "nombre": acta.get("nombre"),
+        "fecha": acta.get("fecha"),
+        "capturista": acta.get("capturista"),
+        "candidatos": candidatos,
+        "planillas": planillas,
+        "ganador": ganador,
+        "ganadores": ganadores,
+        "empate": empate,
+        "resumen": resumen,
+    }
 
 
 @app.route("/")
 def dashboard():
     resultados = _armar_resultados_dashboard()
     return render_template("index.html", resultados=resultados)
+
+
+@app.route("/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta(acta_id: int):
+    acta = db.obtener_por_id(acta_id)
+    if not acta:
+        return Response("Acta no encontrada", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_detalle.html", r=resultado)
 
 
 @app.route("/api/actas", methods=["GET"])

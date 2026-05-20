@@ -62,7 +62,7 @@
 </div>
 
 {% for r in resultados %}
-<article class="card" data-id="{{ r.id }}" data-numero="{{ r.numero or '' }}" data-nombre="{{ r.nombre or '' }}" data-fecha="{{ r.fecha or '' }}">
+<article class="card" data-id="{{ r.id }}" data-numero="{{ r.numero or '' }}" data-nombre="{{ r.nombre or '' }}" data-fecha="{{ r.fecha or '' }}" data-detail-url="{{ url_for('detalle_acta', acta_id=r.id) }}">
     <div class="card-header">
         <div class="dep-num">Dependencia # {{ r.numero or 'N/D' }}</div>
         <div class="card-title">

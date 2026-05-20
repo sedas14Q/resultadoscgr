@@ -72,6 +72,7 @@
 
   let resultadoTimer = null;
   let pendingDeleteCard = null;
+  let pausarReloadHasta = 0;
 
   async function eliminarActa(card) {
     const cred = await pedirAutorizacion();
@@ -113,6 +114,7 @@
     document.body.style.overflow = "hidden";
 
     if (tipo === "exitoso") {
+      pausarReloadHasta = Date.now() + 12000;
       resultadoRetry.style.display = "none";
       resultadoAccept.textContent = "Aceptar";
       resultadoAccept.style.display = "block";
@@ -184,6 +186,21 @@
           eliminarActa(card).catch(() => alert("Error al eliminar acta."));
         });
       }
+    });
+  }
+
+  function activarNavegacionCards() {
+    cards.forEach((card) => {
+      const detailUrl = card.getAttribute("data-detail-url");
+      if (!detailUrl) return;
+
+      card.style.cursor = "pointer";
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("button, a, details, summary, input, select, textarea, .card-actions-popover")) {
+          return;
+        }
+        window.location.href = detailUrl;
+      });
     });
   }
   let estadoActual = {
@@ -282,6 +299,9 @@
         Number(nuevo.ultimo_id || 0) !== Number(estadoActual.ultimo_id || 0);
 
       if (cambio) {
+        if (Date.now() < pausarReloadHasta) {
+          return;
+        }
         window.location.reload();
       }
     } catch (_) {
@@ -492,6 +512,7 @@
 
   detectarDuplicados();
   activarAccionesActa();
+  activarNavegacionCards();
   filtrarActas();
 
   if (resultadoRetry) {

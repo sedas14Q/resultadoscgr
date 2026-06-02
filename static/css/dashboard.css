@@ -1163,3 +1163,37 @@ header h1 {
     }
 }
 
+/* --- ESTILOS PARA EL PIE DE PÁGINA (DISEÑO TECH) --- */
+.pie-de-pagina {
+    text-align: center;
+    padding: 24px 20px;
+    font-size: 0.8rem;
+    color: var(--text-muted, #5f6f85);
+    border-top: 1px solid var(--border, #d8dee9);
+    margin-top: 40px;
+    background: var(--surface, #ffffff);
+    font-family: 'IBM Plex Mono', Fira Code, monospace;
+    transition: border-color 0.3s ease, color 0.3s ease;
+    width: 100%;
+}
+
+.pie-de-pagina p {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.7px;
+}
+
+.tech-icon {
+    color: var(--primary, #155e75);
+    font-weight: bold;
+    background: rgba(255, 225, 0, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 225, 0, 0.25);
+    font-size: 0.75rem;
+}
+
+

@@ -4,67 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal de Resultados Electorales - STUNAM</title>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/dashboard.css" />
     <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --text-color: #f3f4f6;
-            --text-muted: #9ca3af;
-            --cgo-color: #f59e0b;
-            --cgr-color: #3b82f6;
-            --cgo-hover: rgba(245, 158, 11, 0.15);
-            --cgr-hover: rgba(59, 130, 246, 0.15);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
         body {
-            font-family: 'IBM+Plex+Sans', 'IBM Plex Sans', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
             min-height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+            padding-bottom: 0;
+        }
+
+        .main-content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            overflow-x: hidden;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%);
+            padding: 40px 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        header {
+        .welcome-header {
             text-align: center;
-            margin-bottom: 3rem;
-            z-index: 10;
+            margin-bottom: 40px;
         }
 
-        .logo {
-            font-weight: 700;
-            font-size: 1.2rem;
-            letter-spacing: 0.15em;
-            color: #fff;
-            background: linear-gradient(135deg, var(--cgr-color), var(--cgo-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-            display: inline-block;
-        }
-
-        h1 {
+        .welcome-header h2 {
             font-size: 2.2rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
+            color: var(--text);
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
 
-        .subtitle {
+        .welcome-header p {
             color: var(--text-muted);
             font-size: 1.1rem;
         }
@@ -72,10 +49,10 @@
         .portal-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 2rem;
-            max-width: 900px;
-            width: 90%;
-            z-index: 10;
+            gap: 30px;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 40px;
         }
 
         @media (min-width: 768px) {
@@ -85,97 +62,80 @@
         }
 
         .portal-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 30px;
             text-align: center;
-            backdrop-filter: blur(12px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .portal-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            opacity: 0.8;
-        }
-
-        .card-cgo::before {
-            background: var(--cgo-color);
-        }
-
-        .card-cgr::before {
-            background: var(--cgr-color);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 320px;
         }
 
         .portal-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .card-cgo:hover {
-            box-shadow: 0 20px 40px -15px var(--cgo-hover);
-        }
-
-        .card-cgr:hover {
-            box-shadow: 0 20px 40px -15px var(--cgr-hover);
+            transform: translateY(-4px);
+            border-color: var(--border-strong);
+            box-shadow: var(--shadow-hover);
         }
 
         .card-icon {
             font-size: 3rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 15px;
             display: inline-block;
         }
 
-        h2 {
+        .portal-card h3 {
             font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text);
         }
 
         .card-desc {
             color: var(--text-muted);
             font-size: 0.95rem;
-            margin-bottom: 2rem;
+            margin-bottom: 25px;
             line-height: 1.5;
+            flex-grow: 1;
         }
 
-        .action-btn {
+        .portal-btn {
             display: block;
             width: 100%;
-            padding: 1rem;
-            border-radius: 10px;
+            padding: 12px 20px;
+            border-radius: 8px;
             font-size: 1rem;
             font-weight: 600;
             text-decoration: none;
             transition: all 0.2s ease;
-            margin-bottom: 1rem;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
         .btn-cgo {
-            background-color: var(--cgo-color);
-            color: #000;
+            background-color: #f59e0b;
+            color: #ffffff;
+            border: 1px solid #d97706;
         }
 
         .btn-cgo:hover {
-            background-color: #fbbf24;
-            transform: scale(1.02);
+            background-color: #d97706;
+            transform: translateY(-1px);
         }
 
         .btn-cgr {
-            background-color: var(--cgr-color);
-            color: #fff;
+            background-color: var(--primary);
+            color: #ffffff;
+            border: 1px solid #0e7490;
         }
 
         .btn-cgr:hover {
-            background-color: #60a5fa;
-            transform: scale(1.02);
+            background-color: #0e7490;
+            transform: translateY(-1px);
         }
 
         .sub-link {
@@ -184,20 +144,24 @@
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.2s ease;
-            border-bottom: 1px dashed var(--border-color);
+            border-bottom: 1px dashed var(--border-strong);
             padding-bottom: 2px;
         }
 
         .sub-link:hover {
-            color: #fff;
-            border-color: #fff;
+            color: var(--text);
+            border-color: var(--text);
         }
 
-        footer {
-            margin-top: 4rem;
+        .welcome-footer {
+            text-align: center;
+            padding: 24px;
             color: var(--text-muted);
             font-size: 0.85rem;
-            letter-spacing: 0.05em;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+            width: 100%;
+            margin-top: auto;
         }
     </style>
 </head>
@@ -205,30 +169,44 @@
     <header>
         <div class="logo">STUNAM</div>
         <h1>Portal de Resultados Electorales</h1>
-        <p class="subtitle">Selecciona el congreso al que deseas ingresar</p>
     </header>
 
-    <div class="portal-grid">
-        <!-- Tarjeta CGO -->
-        <div class="portal-card card-cgo">
-            <span class="card-icon">⚡</span>
-            <h2>Congreso CGO XLIII</h2>
-            <p class="card-desc">Visualiza resultados en tiempo real y estadísticas generales del Congreso General Ordinario XLIII.</p>
-            <a href="/cgo" class="action-btn btn-cgo">Resultados CGO</a>
-            <a href="/cgo/formulario" class="sub-link">Ir al Formulario de Captura CGO</a>
+    <div class="main-content">
+        <div class="welcome-header">
+            <h2>Elecciones STUNAM</h2>
+            <p>Selecciona el congreso al que deseas ingresar para consultar resultados y estadísticas</p>
         </div>
 
-        <!-- Tarjeta CGR -->
-        <div class="portal-card card-cgr">
-            <span class="card-icon">🗳️</span>
-            <h2>Congreso CGR XXII</h2>
-            <p class="card-desc">Accede al panel de resultados, actas oficiales y estadísticas del Congreso General de Representantes XXII.</p>
-            <a href="/cgr" class="action-btn btn-cgr">Resultados CGR</a>
-            <a href="/cgr/formulario" class="sub-link">Ir al Formulario de Captura CGR</a>
+        <div class="portal-grid">
+            <!-- Tarjeta CGO -->
+            <div class="portal-card">
+                <div>
+                    <span class="card-icon">⚡</span>
+                    <h3>Congreso CGO XLIII</h3>
+                    <p class="card-desc">Visualiza resultados en tiempo real y estadísticas generales del Congreso General Ordinario XLIII.</p>
+                </div>
+                <div style="width: 100%;">
+                    <a href="/cgo" class="portal-btn btn-cgo">Resultados CGO</a>
+                    <a href="/cgo/formulario" class="sub-link">Ir al Formulario de Captura CGO</a>
+                </div>
+            </div>
+
+            <!-- Tarjeta CGR -->
+            <div class="portal-card">
+                <div>
+                    <span class="card-icon">🗳️</span>
+                    <h3>Congreso CGR XXII</h3>
+                    <p class="card-desc">Accede al panel de resultados, actas oficiales y estadísticas del Congreso General de Representantes XXII.</p>
+                </div>
+                <div style="width: 100%;">
+                    <a href="/cgr" class="portal-btn btn-cgr">Resultados CGR</a>
+                    <a href="/cgr/formulario" class="sub-link">Ir al Formulario de Captura CGR</a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <footer>
+    <footer class="welcome-footer">
         <p>&lt;/&gt; Technology for Sedas_A</p>
     </footer>
 </body>

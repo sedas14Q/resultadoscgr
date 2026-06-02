@@ -752,6 +752,25 @@ def dashboard_cgo():
     return render_template("resultados_cgo.html", resultados=resultados)
 
 
+@app.route("/cgr/estadisticas")
+def estadisticas_cgr():
+    """
+    Pagina dedicada a las estadisticas generales del CGR XXII.
+    """
+    resultados = _armar_resultados_dashboard("CGR")
+    return render_template("estadisticas_cgr.html", resultados=resultados)
+
+
+@app.route("/cgo/estadisticas")
+def estadisticas_cgo():
+    """
+    Pagina dedicada a las estadisticas generales del CGO XLIII.
+    """
+    resultados = _armar_resultados_dashboard("CGO")
+    return render_template("estadisticas_cgo.html", resultados=resultados)
+
+
+
 
 
 

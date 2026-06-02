@@ -205,6 +205,25 @@
             </div>
         </div>
 
+        <!-- Apartado Unión de Planillas (Alianzas) -->
+        <div class="table-card" style="margin-bottom: 25px;">
+            <h3>Apartado Unión de Planillas (Alianzas / Coalición)</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">
+                Selecciona las planillas que deseas unir para sumar sus votos y delegados en las estadísticas.
+            </p>
+            <div id="alliance-checkboxes" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 12px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border);">
+                <!-- Checkboxes cargados dinámicamente -->
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="alliance-name" placeholder="Nombre de la Alianza (ej: Frente Amplio)" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; min-width: 250px; background:#fff; color:#000;" />
+                <button type="button" id="btn-alliance-merge" class="action-btn edit-btn" style="padding: 10px 18px; font-weight: 600;">Calcular Unión de Fuerzas</button>
+                <button type="button" id="btn-alliance-reset" class="action-btn delete-btn" style="padding: 10px 18px; font-weight: 600; display: none;">Restablecer Estadísticas</button>
+            </div>
+            <div id="alliance-summary" style="margin-top: 15px; padding: 12px 15px; border-radius: 8px; border: 1px solid #bce8cf; background: #e8f7ef; color: #0f6f4c; display: none; font-size: 14px;">
+                <!-- Resumen consolidado -->
+            </div>
+        </div>
+
         <!-- Tabla Consolidada -->
         <div class="table-card">
             <h3>Consolidado de Resultados por Planilla</h3>
@@ -237,8 +256,8 @@
             let totalSobrantes = 0;
             let totalDelegados = 0;
 
-            const votosPlanilla = {};
-            const delegadosPlanilla = {};
+            const originalVotosPlanilla = {};
+            const originalDelegadosPlanilla = {};
             const expresionPlanilla = {};
 
             resultados.forEach(r => {
@@ -251,43 +270,147 @@
 
                 (r.planillas || []).forEach(p => {
                     const name = p.planilla || "Sin planilla";
-                    votosPlanilla[name] = (votosPlanilla[name] || 0) + Number(p.votos || 0);
-                    delegadosPlanilla[name] = (delegadosPlanilla[name] || 0) + Number(p.delegados_ganados || 0);
+                    originalVotosPlanilla[name] = (originalVotosPlanilla[name] || 0) + Number(p.votos || 0);
+                    originalDelegadosPlanilla[name] = (originalDelegadosPlanilla[name] || 0) + Number(p.delegados_ganados || 0);
                     if (p.expresion_politica) {
                         expresionPlanilla[name] = p.expresion_politica;
                     }
                 });
             });
 
-            // Tarjetas básicas
-            document.getElementById("val-actas").textContent = resultados.length;
-            document.getElementById("val-votos").textContent = totalVotosValidos.toLocaleString();
-            document.getElementById("val-delegados").textContent = totalDelegados.toLocaleString();
+            // Referencias globales de gráficos
+            let chartVotos = null;
+            let chartDelegados = null;
+            let chartPart = null;
+            let chartPct = null;
 
-            const planillas = Object.keys(votosPlanilla);
-            let liderPlanilla = "Ninguna";
-            let liderVotos = 0;
+            // Datos actuales dinámicos
+            let currentVotos = { ...originalVotosPlanilla };
+            let currentDelegados = { ...originalDelegadosPlanilla };
 
-            planillas.forEach(p => {
-                if (votosPlanilla[p] > liderVotos) {
-                    liderVotos = votosPlanilla[p];
-                    liderPlanilla = p;
+            // Inyectar checkboxes de alianzas
+            const allianceContainer = document.getElementById("alliance-checkboxes");
+            const planillasOriginales = Object.keys(originalVotosPlanilla);
+            
+            function renderCheckboxes() {
+                allianceContainer.innerHTML = "";
+                if (planillasOriginales.length === 0) {
+                    allianceContainer.textContent = "No hay planillas disponibles para unir.";
+                    return;
                 }
-            });
+                planillasOriginales.forEach(p => {
+                    const label = document.createElement("label");
+                    label.style.display = "inline-flex";
+                    label.style.alignItems = "center";
+                    label.style.gap = "6px";
+                    label.style.cursor = "pointer";
+                    label.style.fontWeight = "500";
+                    label.style.color = "var(--text)";
 
-            if (liderVotos > 0) {
-                document.getElementById("val-lider-votos").textContent = liderPlanilla;
-                document.getElementById("val-lider-votos-sub").textContent = liderVotos.toLocaleString() + " votos acumulados";
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.value = p;
+                    cb.className = "alliance-cb";
+                    
+                    label.append(cb, p);
+                    allianceContainer.appendChild(label);
+                });
+            }
+            renderCheckboxes();
+
+            function refreshUI() {
+                const planillas = Object.keys(currentVotos);
+                
+                // Actualizar tarjetas principales
+                document.getElementById("val-actas").textContent = resultados.length;
+                document.getElementById("val-votos").textContent = totalVotosValidos.toLocaleString();
+                
+                let totalDelGanados = Object.values(currentDelegados).reduce((a,b)=>a+b, 0);
+                document.getElementById("val-delegados").textContent = totalDelGanados.toLocaleString();
+
+                let liderPlanilla = "Ninguna";
+                let liderVotos = 0;
+
+                planillas.forEach(p => {
+                    if (currentVotos[p] > liderVotos) {
+                        liderVotos = currentVotos[p];
+                        liderPlanilla = p;
+                    }
+                });
+
+                if (liderVotos > 0) {
+                    document.getElementById("val-lider-votos").textContent = liderPlanilla;
+                    document.getElementById("val-lider-votos-sub").textContent = liderVotos.toLocaleString() + " votos acumulados";
+                } else {
+                    document.getElementById("val-lider-votos").textContent = "N/D";
+                    document.getElementById("val-lider-votos-sub").textContent = "0 votos";
+                }
+
+                const dataVotos = planillas.map(p => currentVotos[p]);
+                const dataDelegados = planillas.map(p => currentDelegados[p]);
+                const colores = planillas.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
+
+                // Actualizar Gráfico 1: Votos
+                if (chartVotos) {
+                    chartVotos.data.labels = planillas;
+                    chartVotos.data.datasets[0].data = dataVotos;
+                    chartVotos.data.datasets[0].backgroundColor = colores;
+                    chartVotos.update();
+                }
+
+                // Actualizar Gráfico 2: Delegados
+                if (chartDelegados) {
+                    chartDelegados.data.labels = planillas;
+                    chartDelegados.data.datasets[0].data = dataDelegados;
+                    chartDelegados.data.datasets[0].backgroundColor = colores;
+                    chartDelegados.update();
+                }
+
+                // Actualizar Gráfico 4: Porcentual
+                if (chartPct) {
+                    chartPct.data.labels = planillas;
+                    chartPct.data.datasets[0].data = dataVotos;
+                    chartPct.data.datasets[0].backgroundColor = colores;
+                    chartPct.update();
+                }
+
+                // Llenar tabla consolidada
+                const tbody = document.getElementById("consolidado-rows");
+                if (tbody) {
+                    tbody.innerHTML = "";
+                    const planillasOrdenadas = [...planillas].sort((a, b) => currentVotos[b] - currentVotos[a]);
+                    if (planillasOrdenadas.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Sin datos acumulados de planillas</td></tr>`;
+                    } else {
+                        planillasOrdenadas.forEach(p => {
+                            const tr = document.createElement("tr");
+                            const votos = currentVotos[p];
+                            const pct = totalVotosValidos > 0 ? ((votos / totalVotosValidos) * 100).toFixed(2) : "0.00";
+                            const del = currentDelegados[p];
+                            const exp = expresionPlanilla[p] || 'N/D';
+
+                            tr.innerHTML = `
+                                <td style="font-weight: 700;">${p}</td>
+                                <td>${exp}</td>
+                                <td style="font-weight: 700;">${votos.toLocaleString()}</td>
+                                <td style="font-weight: 700; color: var(--primary);">${pct} %</td>
+                                <td><span class="delegados-inline-red">${del.toLocaleString()}</span></td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
             }
 
-            const dataVotos = planillas.map(p => votosPlanilla[p]);
-            const dataDelegados = planillas.map(p => delegadosPlanilla[p]);
+            // Inicializar Gráficos por Primera Vez
+            const planillas = Object.keys(currentVotos);
+            const dataVotos = planillas.map(p => currentVotos[p]);
+            const dataDelegados = planillas.map(p => currentDelegados[p]);
             const colores = planillas.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
 
-            // Gráfico 1: Votos Totales Acumulados
             const ctxVotos = document.getElementById("chart-acumulado-votos");
             if (ctxVotos) {
-                new Chart(ctxVotos, {
+                chartVotos = new Chart(ctxVotos, {
                     type: 'bar',
                     data: {
                         labels: planillas,
@@ -306,10 +429,9 @@
                 });
             }
 
-            // Gráfico 2: Delegados Totales
             const ctxDelegados = document.getElementById("chart-acumulado-delegados");
             if (ctxDelegados) {
-                new Chart(ctxDelegados, {
+                chartDelegados = new Chart(ctxDelegados, {
                     type: 'bar',
                     data: {
                         labels: planillas,
@@ -328,10 +450,9 @@
                 });
             }
 
-            // Gráfico 3: Participación General
             const ctxPart = document.getElementById("chart-participacion");
             if (ctxPart) {
-                new Chart(ctxPart, {
+                chartPart = new Chart(ctxPart, {
                     type: 'pie',
                     data: {
                         labels: ["Votos Válidos", "Votos Nulos", "Abstenciones", "Boletas no Usadas"],
@@ -349,10 +470,9 @@
                 });
             }
 
-            // Gráfico 4: Porcentual
             const ctxPct = document.getElementById("chart-porcentaje-votos");
             if (ctxPct) {
-                new Chart(ctxPct, {
+                chartPct = new Chart(ctxPct, {
                     type: 'doughnut',
                     data: {
                         labels: planillas,
@@ -370,32 +490,83 @@
                 });
             }
 
-            // Llenar tabla consolidada
-            const tbody = document.getElementById("consolidado-rows");
-            if (tbody) {
-                // Ordenar planillas por votos de mayor a menor
-                const planillasOrdenadas = [...planillas].sort((a, b) => votosPlanilla[b] - votosPlanilla[a]);
-                if (planillasOrdenadas.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Sin datos acumulados de planillas</td></tr>`;
-                } else {
-                    planillasOrdenadas.forEach(p => {
-                        const tr = document.createElement("tr");
-                        const votos = votosPlanilla[p];
-                        const pct = totalVotosValidos > 0 ? ((votos / totalVotosValidos) * 100).toFixed(2) : "0.00";
-                        const del = delegadosPlanilla[p];
-                        const exp = expresionPlanilla[p] || 'N/D';
+            // Llamada inicial para llenar la tabla
+            refreshUI();
 
-                        tr.innerHTML = `
-                            <td style="font-weight: 700;">${p}</td>
-                            <td>${exp}</td>
-                            <td style="font-weight: 700;">${votos.toLocaleString()}</td>
-                            <td style="font-weight: 700; color: var(--primary);">${pct} %</td>
-                            <td><span class="delegados-inline-red">${del.toLocaleString()}</span></td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
+            // Lógica del Botón de Alianza / Unión
+            const btnMerge = document.getElementById("btn-alliance-merge");
+            const btnReset = document.getElementById("btn-alliance-reset");
+            const inputName = document.getElementById("alliance-name");
+            const summaryBox = document.getElementById("alliance-summary");
+
+            btnMerge.addEventListener("click", () => {
+                const checkedCbs = Array.from(document.querySelectorAll(".alliance-cb:checked"));
+                if (checkedCbs.length < 2) {
+                    alert("Por favor selecciona al menos 2 planillas para realizar la unión.");
+                    return;
                 }
-            }
+
+                let name = inputName.value.trim();
+                if (!name) {
+                    name = checkedCbs.map(cb => cb.value).join(" + ");
+                }
+
+                let combinedV = 0;
+                let combinedD = 0;
+                const expresiones = [];
+
+                const planillasAUnir = checkedCbs.map(cb => cb.value);
+
+                // Calcular suma
+                planillasAUnir.forEach(p => {
+                    combinedV += originalVotosPlanilla[p] || 0;
+                    combinedD += originalDelegadosPlanilla[p] || 0;
+                    if (expresionPlanilla[p]) expresiones.push(expresionPlanilla[p]);
+                });
+
+                // Crear nueva estructura filtrando las unidas e inyectando la fusionada
+                currentVotos = {};
+                currentDelegados = {};
+
+                planillasOriginales.forEach(p => {
+                    if (!planillasAUnir.includes(p)) {
+                        currentVotos[p] = originalVotosPlanilla[p];
+                        currentDelegados[p] = originalDelegadosPlanilla[p];
+                    }
+                });
+
+                currentVotos[name] = combinedV;
+                currentDelegados[name] = combinedD;
+                expresionPlanilla[name] = expresiones.join(" / ");
+
+                // Mostrar resumen
+                summaryBox.style.display = "block";
+                const pctComb = totalVotosValidos > 0 ? ((combinedV / totalVotosValidos) * 100).toFixed(2) : "0.00";
+                summaryBox.innerHTML = `
+                    <strong>¡Unión Exitosa!</strong><br/>
+                    Se ha creado la fuerza <strong>"${name}"</strong> sumando las planillas: ${planillasAUnir.join(", ")}.<br/>
+                    <strong>Votos Consolidados:</strong> ${combinedV.toLocaleString()} (${pctComb}%) &nbsp;|&nbsp; 
+                    <strong>Delegados Totales Consolidados:</strong> ${combinedD.toLocaleString()}
+                `;
+
+                btnReset.style.display = "inline-block";
+                
+                // Actualizar Interfaz
+                refreshUI();
+            });
+
+            btnReset.addEventListener("click", () => {
+                currentVotos = { ...originalVotosPlanilla };
+                currentDelegados = { ...originalDelegadosPayload = originalDelegadosPlanilla };
+                
+                // Desmarcar todo
+                document.querySelectorAll(".alliance-cb").forEach(cb => cb.checked = false);
+                inputName.value = "";
+                summaryBox.style.display = "none";
+                btnReset.style.display = "none";
+
+                refreshUI();
+            });
         })();
     </script>
 </body>

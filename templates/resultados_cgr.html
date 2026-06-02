@@ -28,6 +28,23 @@
     </div>
 </section>
 
+
+<section class="statistics-section" style="margin-bottom: 2rem;">
+    <details id="estadisticas-menu" class="duplicate-menu">
+        <summary>Estadísticas Generales (Ver Gráficas)</summary>
+        <div class="stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="height: 300px; position: relative;">
+                <h4 style="text-align: center; margin-bottom: 10px;">Votos Totales Acumulados</h4>
+                <canvas id="chart-total-votos"></canvas>
+            </div>
+            <div style="height: 300px; position: relative;">
+                <h4 style="text-align: center; margin-bottom: 10px;">Delegados Totales Ganados</h4>
+                <canvas id="chart-total-delegados"></canvas>
+            </div>
+        </div>
+    </details>
+</section>
+
 <section class="duplicate-section">
     <details id="duplicados-menu" class="duplicate-menu">
         <summary>Actas duplicadas <span id="duplicate-count" class="duplicate-count">0</span><span class="duplicate-help">Tocar para mostrar solo duplicadas</span></summary>
@@ -68,7 +85,7 @@
 </div>
 
 {% for r in resultados %}
-<article class="card" data-id="{{ r.id }}" data-numero="{{ r.numero or '' }}" data-nombre="{{ r.nombre or '' }}" data-fecha="{{ r.fecha or '' }}" data-detail-url="{{ url_for('detalle_acta', acta_id=r.id) }}">
+<article class="card" data-id="{{ r.id }}" data-numero="{{ r.numero or '' }}" data-nombre="{{ r.nombre or '' }}" data-fecha="{{ r.fecha or '' }}" data-detail-url="{{ url_for('detalle_acta_cgr', acta_id=r.id) }}">
     <div class="card-header">
         <div class="dep-num">Dependencia # {{ r.numero or 'N/D' }}</div>
         <div class="card-title">
@@ -309,7 +326,7 @@
     </div>
 </div>
 <script id="resultados-json" type="application/json">{{ resultados | tojson }}</script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_cgr.js') }}"></script>
 </body>
 </html>
 

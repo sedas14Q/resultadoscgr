@@ -1,24 +1,30 @@
-﻿/* Dashboard electoral - estilos mejorados (colores originales) */
+/* 
+   Dashboard electoral - Hojas de Estilo CSS
+   Este archivo define la identidad visual de la aplicación.
+   Implementa un diseño adaptativo (responsive) con una paleta de colores corporativa.
+*/
+
 :root {
-    --bg: #f5f7fb;
-    --surface: #ffffff;
-    --surface-soft: #f8fafc;
-    --border: #d8dee9;
-    --border-strong: #b7c0ce;
-    --primary: #155e75;
-    --primary-soft: #e6f4f7;
-    --accent: #168a61;
-    --accent-soft: #e8f7ef;
-    --points: #6d28d9;
+    /* --- Sistema de Variables de Diseño (Tokens) --- */
+    --bg: #f5f7fb;            /* Fondo general de la aplicación */
+    --surface: #ffffff;       /* Fondo de las tarjetas y contenedores principales */
+    --surface-soft: #f8fafc;  /* Fondo alternativo suave */
+    --border: #d8dee9;        /* Borde general y sutil */
+    --border-strong: #b7c0ce; /* Borde más pronunciado para inputs y paneles */
+    --primary: #155e75;       /* Color primario: Azul institucional */
+    --primary-soft: #e6f4f7;  /* Color primario suave para badges y fondos */
+    --accent: #168a61;        /* Color de acento: Verde para representar ganadores */
+    --accent-soft: #e8f7ef;   /* Verde suave para banners de ganador */
+    --points: #6d28d9;        /* Morado suave para puntos o notas adicionales */
     --points-soft: #efe7ff;
-    --danger: #b42318;
+    --danger: #b42318;        /* Color rojo para delegados y acciones destructivas */
     --danger-soft: #fee4e2;
-    --text: #000080;
-    --text-muted: #5f6f85;
+    --text: #000080;          /* Texto principal en azul marino oscuro */
+    --text-muted: #5f6f85;    /* Texto secundario atenuado */
     --shadow: 0 12px 28px rgba(20, 33, 61, .08);
     --shadow-hover: 0 20px 32px rgba(20, 33, 61, .12);
-    --font-mono: 'IBM Plex Mono', monospace;
-    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace; /* Tipografía para datos numéricos y claves */
+    --font-sans: 'IBM Plex Sans', sans-serif; /* Tipografía para textos generales */
     --radius: 8px;
     --radius-lg: 12px;
 }
@@ -942,7 +948,12 @@ header h1 {
     background: #921d14;
 }
 
-/* Responsive mejorado */
+/* 
+   --- Adaptabilidad (Responsive Design) ---
+   Se utilizan puntos de quiebre (Media Queries) para reestructurar la cuadrícula,
+   reducir tamaños de tipografía y convertir tablas anchas a contenedores con scroll horizontal
+   para una visualización móvil óptima.
+*/
 @media (max-width: 860px) {
     header {
         padding: 14px 16px;

@@ -28,7 +28,7 @@
 <section class="search-section">
     <div class="search-box detail-nav-box">
         <button type="button" class="action-btn detail-nav-btn" onclick="window.history.back()">Regresar</button>
-        <button type="button" class="action-btn edit-btn detail-nav-btn" onclick="window.location.href='{{ url_for('dashboard') }}'">Dashboard</button>
+        <button type="button" class="action-btn edit-btn detail-nav-btn" onclick="window.location.href='{{ url_for('dashboard_cgr') }}'">Dashboard</button>
     </div>
 </section>
 
@@ -311,7 +311,7 @@
         segundos--;
         if (segundos <= 0) {
           limpiarResultadoTimer();
-          window.location.href = "{{ url_for('dashboard') }}";
+          window.location.href = "{{ url_for('dashboard_cgr') }}";
         } else {
           resultadoCountdown.textContent = `Se redirigira al dashboard en ${segundos} s`;
         }
@@ -331,7 +331,7 @@
     if (!actaId) return;
 
     try {
-      const res = await fetch(`/api/actas/${actaId}`, {
+      const res = await fetch(`/api/cgr/actas/${actaId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cred),
@@ -358,7 +358,7 @@
       if (!card) return;
       const actaId = Number(card.getAttribute("data-id") || 0);
       if (!actaId) return;
-      window.open(`/api/actas/${actaId}/pdf`, "_blank");
+      window.open(`/api/cgr/actas/${actaId}/pdf`, "_blank");
     });
   }
 
@@ -370,7 +370,7 @@
 
   resultadoAccept.addEventListener("click", () => {
     limpiarResultadoTimer();
-    window.location.href = "{{ url_for('dashboard') }}";
+    window.location.href = "{{ url_for('dashboard_cgr') }}";
   });
 
   resultadoModal.addEventListener("click", (e) => {

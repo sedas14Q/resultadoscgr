@@ -2,20 +2,20 @@
 <html lang="es">
 <head>
     <!--
-      Plantilla de Detalle de Acta (acta_detalle.html).
+      Plantilla de Detalle de Acta CGO XLIII (acta_detalle.html).
       Renderiza la vista detallada de un acta específica, incluyendo delegados ganados,
       nombres de delegados y botones de control administrativo.
     -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Detalle de Acta</title>
+    <title>Detalle de Acta CGO XLIII</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/css/dashboard.css" />
 </head>
 <body>
 <header>
     <div class="logo">STUNAM</div>
-    <h1>Detalle de Acta</h1>
+    <h1>Detalle de Acta CGO XLIII</h1>
     <div class="badge">Acta #{{ r.id }}</div>
 </header>
 
@@ -28,7 +28,7 @@
 <section class="search-section">
     <div class="search-box detail-nav-box">
         <button type="button" class="action-btn detail-nav-btn" onclick="window.history.back()">Regresar</button>
-        <button type="button" class="action-btn edit-btn detail-nav-btn" onclick="window.location.href='{{ url_for('dashboard') }}'">Dashboard</button>
+        <button type="button" class="action-btn edit-btn detail-nav-btn" onclick="window.location.href='{{ url_for('dashboard_cgo') }}'">Dashboard</button>
     </div>
 </section>
 
@@ -311,7 +311,7 @@
         segundos--;
         if (segundos <= 0) {
           limpiarResultadoTimer();
-          window.location.href = "{{ url_for('dashboard') }}";
+          window.location.href = "{{ url_for('dashboard_cgo') }}";
         } else {
           resultadoCountdown.textContent = `Se redirigira al dashboard en ${segundos} s`;
         }
@@ -331,7 +331,7 @@
     if (!actaId) return;
 
     try {
-      const res = await fetch(`/api/actas/${actaId}`, {
+      const res = await fetch(`/api/cgo/actas/${actaId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cred),
@@ -358,7 +358,7 @@
       if (!card) return;
       const actaId = Number(card.getAttribute("data-id") || 0);
       if (!actaId) return;
-      window.open(`/api/actas/${actaId}/pdf`, "_blank");
+      window.open(`/api/cgo/actas/${actaId}/pdf`, "_blank");
     });
   }
 
@@ -370,7 +370,7 @@
 
   resultadoAccept.addEventListener("click", () => {
     limpiarResultadoTimer();
-    window.location.href = "{{ url_for('dashboard') }}";
+    window.location.href = "{{ url_for('dashboard_cgo') }}";
   });
 
   resultadoModal.addEventListener("click", (e) => {

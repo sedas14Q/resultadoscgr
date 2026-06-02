@@ -1,5 +1,7 @@
-﻿"""
-app.py - Captura manual de actas desde formulario y visualizacion en dashboard.
+"""
+app.py - Servidor principal de Flask para captura manual de actas y visualización en el dashboard.
+Este script maneja las rutas HTTP para renderizar vistas, endpoints API, validación de datos
+y la generación dinámica de archivos PDF de manera directa sin librerías externas.
 """
 
 from __future__ import annotations
@@ -51,6 +53,11 @@ def _to_float(value, default=0.0):
 
 
 def normalizar_candidatos(data):
+    """
+    Normaliza y limpia la lista de candidatos recibida desde el frontend.
+    Maneja el formato antiguo (candidato unitario) y el formato nuevo (múltiples candidatos por planilla).
+    Retorna la lista ordenada descendentemente por número de votos.
+    """
     if not isinstance(data, list):
         return []
 
@@ -94,6 +101,10 @@ def normalizar_candidatos(data):
 
 
 def normalizar_resumen(resumen):
+    """
+    Normaliza los valores agregados del acta (votos totales, nulos, abstenciones, boletas no usadas
+    y el padrón del sindicato) asegurando que sean enteros válidos y no nulos.
+    """
     r = resumen if isinstance(resumen, dict) else {}
     return {
         "votos_totales": _to_int(r.get("votos_totales"), 0),
@@ -107,6 +118,10 @@ def normalizar_resumen(resumen):
 
 
 def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[dict]:
+    """
+    Agrupa los candidatos por planilla. Suma los votos de todos los candidatos de la misma planilla,
+    recalcula el porcentaje que representan sobre el total de votos y acumula los delegados ganados.
+    """
     grupos: dict[str, dict] = {}
 
     for c in candidatos or []:
@@ -146,6 +161,10 @@ def agrupar_planillas(candidatos: list[dict], votos_totales: int = 0) -> list[di
 
 
 def _admin_autorizado(payload: dict) -> bool:
+    """
+    Verifica las credenciales de administrador enviadas en el payload.
+    Compara el hash de la contraseña usando pbkdf2:sha256 (seguridad de Werkzeug).
+    """
     usuario = _safe_text((payload or {}).get("usuario")) or ""
     contrasena = str((payload or {}).get("contrasena") or "")
     hash_objetivo = ADMIN_PASSWORD_HASH or DEFAULT_ADMIN_PASSWORD_HASH
@@ -153,6 +172,10 @@ def _admin_autorizado(payload: dict) -> bool:
 
 
 def validar_acta(candidatos: list, resumen: dict) -> str | None:
+    """
+    Valida la consistencia de los datos del acta electoral.
+    Verifica que no haya votos ni delegados negativos y que las planillas contengan votos.
+    """
     if not candidatos:
         return "Debes capturar minimo 1 candidato completo."
 
@@ -175,7 +198,11 @@ def validar_acta(candidatos: list, resumen: dict) -> str | None:
     return None
 
 def recalcular_padron(resumen: dict) -> tuple[dict, bool]:
-    """Calcula punto 11 como suma de puntos 7,8,9,10."""
+    """
+    Recalcula el total del padrón (Punto 11) como la suma aritmética de:
+    Votos Totales + Votos Nulos + Abstenciones + Boletas no Usadas.
+    Retorna el resumen ajustado y un booleano indicando si el valor original cambió.
+    """
     r = normalizar_resumen(resumen)
     total_calculado = (
         r["votos_totales"]
@@ -189,14 +216,27 @@ def recalcular_padron(resumen: dict) -> tuple[dict, bool]:
 
 
 def _pdf_escape(texto: str) -> str:
+    """
+    Escapa caracteres especiales del estándar PDF para evitar que rompan la estructura del stream.
+    Duplica las diagonales invertidas y escapa paréntesis.
+    """
     return (texto or "").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
 def _as_latin1(texto: str) -> str:
+    """
+    Codifica el texto en latin-1 para compatibilidad directa con los tipos de fuente estándar
+    de PDF (Helvetica, Helvetica-Bold) y evitar caracteres multibyte UTF-8 que romperían el visor.
+    """
     return (texto or "").encode("latin-1", errors="replace").decode("latin-1")
 
 
 def _pie_wedge_points(cx: float, cy: float, r: float, a0: float, a1: float, steps: int = 18):
+    """
+    Calcula los puntos vectoriales que conforman un sector de la gráfica de pastel
+    desde el ángulo a0 hasta a1, con un radio r centrado en cx, cy.
+    Retorna una lista de tuplas (x, y) donde el primer punto es el centro del pastel.
+    """
     pts = [(cx, cy)]
     for i in range(steps + 1):
         t = a0 + (a1 - a0) * (i / steps)
@@ -204,6 +244,10 @@ def _pie_wedge_points(cx: float, cy: float, r: float, a0: float, a1: float, step
     return pts
 
 def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: list[tuple[float, float, float]]) -> list[str]:
+    """
+    Genera comandos de dibujo de gráficos vectoriales en sintaxis PDF nativa
+    para representar una gráfica circular (pie chart) basándose en los votos de las planillas.
+    """
     total = sum(max(0.0, float(v)) for v in values)
     if total <= 0:
         return []
@@ -224,7 +268,7 @@ def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: l
             cmds.append(f"{x:.2f} {y:.2f} l")
         cmds.append("h f Q")
         ang = next_ang
-    # Borde exterior
+    # Borde exterior de la gráfica circular
     ring_pts = _pie_wedge_points(cx, cy, r, 0, 2 * math.pi, 48)[1:]
     if ring_pts:
         cmds.append("q 0.35 0.45 0.60 RG 0.8 w")
@@ -236,6 +280,11 @@ def _pdf_draw_pie(cx: float, cy: float, r: float, values: list[float], colors: l
     return cmds
 
 def _armar_pdf_acta(acta: dict) -> bytes:
+    """
+    Ensambla de forma dinámica y a nivel de bytes un archivo PDF compatible con la especificación 1.4.
+    Dibuja la cabecera, barra de información, tabla de planillas con ganadores resaltados en verde,
+    el desglose de delegados ganados, el resumen general y el gráfico circular de votación.
+    """
     candidatos = normalizar_candidatos((acta or {}).get("candidatos"))
     resumen = normalizar_resumen((acta or {}).get("resumen"))
     planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
@@ -276,7 +325,8 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(f"q {G[0]:.2f} {G[1]:.2f} {G[2]:.2f} rg 0 770 595 3 re f Q")
     setRGB(1, 1, 1)
     contenido.append(t(42, 816, "ACTA ELECTORAL", "F2", 20))
-    contenido.append(t(42, 793, "STUNAM - CONGRESO GENERAL DE REPRESENTANTES XXII", "F1", 10))
+    titulo_congreso = "STUNAM - CONGRESO GENERAL ORDINARIO XLIII" if acta.get("sistema") == "CGO" else "STUNAM - CONGRESO GENERAL DE REPRESENTANTES XXII"
+    contenido.append(t(42, 793, titulo_congreso, "F1", 10))
     contenido.append(t_right(553, 816, f"ID #{acta.get('id', 'N/D')}", "F2", 11))
     setRGB(0, 0, 0)
     # ===================== INFO BAR =====================
@@ -500,7 +550,8 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     contenido.append(f"q {G[0]:.2f} {G[1]:.2f} {G[2]:.2f} rg 0 32 595 2 re f Q")
     setRGB(1, 1, 1)
     contenido.append(t(42, 18, "Documento generado automaticamente por el sistema de captura oficial", "F1", 8))
-    contenido.append(t(42, 7, "STUNAM - Resultados CGR XXII", "F1", 7))
+    footer_texto = "STUNAM - Resultados CGO XLIII" if acta.get("sistema") == "CGO" else "STUNAM - Resultados CGR XXII"
+    contenido.append(t(42, 7, footer_texto, "F1", 7))
     setRGB(0, 0, 0)
 
     # ===================== PDF ASSEMBLY =====================
@@ -536,20 +587,32 @@ def _armar_pdf_acta(acta: dict) -> bytes:
 
 @app.after_request
 def add_cors_headers(response):
+    """
+    Middleware que inyecta cabeceras CORS (Cross-Origin Resource Sharing) en cada respuesta HTTP.
+    Permite llamadas AJAX desde orígenes externos (como el sitio estático de Netlify).
+    """
     response.headers["Access-Control-Allow-Origin"] = os.getenv("CORS_ORIGIN", "*")
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
     return response
 
 
-def _armar_resultados_dashboard() -> list[dict]:
+def _armar_resultados_dashboard(sistema: str | None = None) -> list[dict]:
+    """
+    Recupera todas las actas de la base de datos y las procesa para darles el formato
+    necesitado por el dashboard, incluyendo ganadores y empates.
+    """
     resultados = []
-    for acta in db.obtener_todas():
+    for acta in db.obtener_todas(sistema):
         resultados.append(_armar_resultado_desde_acta(acta))
     return resultados
 
 
 def _armar_resultado_desde_acta(acta: dict) -> dict:
+    """
+    Genera la estructura de resultados detallados para un acta, resolviendo la planilla
+    ganadora o la existencia de empates.
+    """
     candidatos = normalizar_candidatos(acta.get("candidatos"))
     resumen = normalizar_resumen(acta.get("resumen"))
     planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
@@ -575,34 +638,11 @@ def _armar_resultado_desde_acta(acta: dict) -> dict:
         "ganadores": ganadores,
         "empate": empate,
         "resumen": resumen,
+        "sistema": acta.get("sistema"),
     }
 
 
-@app.route("/")
-def dashboard():
-    resultados = _armar_resultados_dashboard()
-    return render_template("index.html", resultados=resultados)
-
-
-@app.route("/acta/<int:acta_id>", methods=["GET"])
-def detalle_acta(acta_id: int):
-    acta = db.obtener_por_id(acta_id)
-    if not acta:
-        return Response("Acta no encontrada", status=404, mimetype="text/plain")
-    resultado = _armar_resultado_desde_acta(acta)
-    return render_template("acta_detalle.html", r=resultado)
-
-
-@app.route("/api/actas", methods=["GET"])
-def listar_actas():
-    return jsonify({"status": "ok", "data": _armar_resultados_dashboard()})
-
-
-@app.route("/api/actas", methods=["POST", "OPTIONS"])
-def crear_acta_manual():
-    if request.method == "OPTIONS":
-        return ("", 204)
-
+def _crear_acta_sistema(sistema: str, cross_ref: bool):
     inicio = perf_counter()
     payload = request.get_json(silent=True) or {}
 
@@ -611,9 +651,13 @@ def crear_acta_manual():
     fecha = _safe_text(payload.get("fecha"))
     capturista = _safe_text(payload.get("capturista"))
 
-    numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
-    numero = _safe_text(numero)
-    nombre = _safe_text(nombre)
+    if cross_ref:
+        numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
+        numero = _safe_text(numero)
+        nombre = _safe_text(nombre)
+    else:
+        numero = _safe_text(numero_raw)
+        nombre = _safe_text(nombre_raw)
 
     if not numero and not nombre:
         return jsonify({"status": "error", "mensaje": "Debes capturar numero o nombre de dependencia"}), 400
@@ -621,7 +665,7 @@ def crear_acta_manual():
     if not numero or not nombre:
         return jsonify({
             "status": "error",
-            "mensaje": "No se pudo encontrar coincidencia entre numero y nombre en la base de dependencias",
+            "mensaje": "No se pudo encontrar coincidencia entre numero y nombre de dependencia",
         }), 400
 
     # Priorizar formato nuevo: planillas con candidatos ligados a cada planilla.
@@ -659,6 +703,7 @@ def crear_acta_manual():
         resumen=resumen,
         fuente="formulario_online",
         capturista=capturista,
+        sistema=sistema
     )
 
     fin = perf_counter()
@@ -679,25 +724,81 @@ def crear_acta_manual():
     return jsonify({"status": "ok", "data": data})
 
 
-@app.route("/api/actas/estado", methods=["GET"])
-def estado_actas():
-    return jsonify({"status": "ok", "data": db.obtener_estado()})
+# ---------------- WEB ROUTING VIEWS ----------------
 
-@app.route("/api/health/db", methods=["GET"])
-def health_db():
-    estado = db.healthcheck()
-    code = 200 if estado.get("ok") else 503
-    return jsonify({"status": "ok" if estado.get("ok") else "error", "data": estado}), code
+@app.route("/")
+def dashboard():
+    """
+    Ruta principal. Renderiza el portal de bienvenida y selector.
+    """
+    return render_template("bienvenida.html")
 
 
-@app.route("/api/actas/<int:acta_id>/pdf", methods=["GET"])
-def descargar_pdf_acta(acta_id: int):
+@app.route("/cgr")
+def dashboard_cgr():
+    """
+    Dashboard de Resultados para CGR XXII.
+    """
+    resultados = _armar_resultados_dashboard("CGR")
+    return render_template("resultados_cgr.html", resultados=resultados)
+
+
+@app.route("/cgo")
+def dashboard_cgo():
+    """
+    Dashboard de Resultados para CGO XLIII.
+    """
+    resultados = _armar_resultados_dashboard("CGO")
+    return render_template("resultados_cgo.html", resultados=resultados)
+
+
+
+
+
+@app.route("/cgr/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta_cgr(acta_id: int):
     acta = db.obtener_por_id(acta_id)
-    if not acta:
-        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+    if not acta or acta.get("sistema") != "CGR":
+        return Response("Acta no encontrada en CGR", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_detalle_cgr.html", r=resultado)
 
+
+@app.route("/cgo/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta_cgo(acta_id: int):
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGO":
+        return Response("Acta no encontrada en CGO", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_detalle_cgo.html", r=resultado)
+
+
+# ---------------- API ENDPOINTS FOR CGR ----------------
+
+@app.route("/api/cgr/actas", methods=["GET"])
+def listar_actas_cgr():
+    return jsonify({"status": "ok", "data": _armar_resultados_dashboard("CGR")})
+
+
+@app.route("/api/cgr/actas", methods=["POST", "OPTIONS"])
+def crear_acta_manual_cgr():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    return _crear_acta_sistema("CGR", cross_ref=True)
+
+
+@app.route("/api/cgr/actas/estado", methods=["GET"])
+def estado_actas_cgr():
+    return jsonify({"status": "ok", "data": db.obtener_estado("CGR")})
+
+
+@app.route("/api/cgr/actas/<int:acta_id>/pdf", methods=["GET"])
+def descargar_pdf_acta_cgr(acta_id: int):
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGR":
+        return jsonify({"status": "error", "mensaje": "Acta CGR no encontrada"}), 404
     pdf = _armar_pdf_acta(acta)
-    nombre = f"acta_{acta_id}.pdf"
+    nombre = f"acta_cgr_{acta_id}.pdf"
     return Response(
         pdf,
         headers={
@@ -707,78 +808,92 @@ def descargar_pdf_acta(acta_id: int):
         },
     )
 
-@app.route("/api/actas/<int:acta_id>", methods=["PUT", "OPTIONS"])
-def actualizar_acta_manual(acta_id: int):
+
+@app.route("/api/cgr/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
+def eliminar_acta_manual_cgr(acta_id: int):
     if request.method == "OPTIONS":
         return ("", 204)
-
     payload = request.get_json(silent=True) or {}
     if not _admin_autorizado(payload):
         return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
-
-    numero_raw = payload.get("numero")
-    nombre_raw = payload.get("nombre")
-    fecha = _safe_text(payload.get("fecha"))
-    capturista = _safe_text(payload.get("capturista"))
-
-    numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
-    numero = _safe_text(numero)
-    nombre = _safe_text(nombre)
-
-    if not numero or not nombre:
-        return jsonify({"status": "error", "mensaje": "Numero o nombre de dependencia invalido"}), 400
-
-    acta_actual = db.obtener_por_id(acta_id)
-    if not acta_actual:
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGR":
         return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
-
-    if "planillas" in payload and isinstance(payload.get("planillas"), list):
-        candidatos = normalizar_candidatos(payload.get("planillas"))
-    elif "candidatos" in payload:
-        candidatos = normalizar_candidatos(payload.get("candidatos"))
-    else:
-        candidatos = normalizar_candidatos(acta_actual.get("candidatos"))
-
-    if "resumen" in payload:
-        resumen = normalizar_resumen(payload.get("resumen"))
-    else:
-        resumen = normalizar_resumen(acta_actual.get("resumen"))
-
-    total = resumen.get("votos_totales", 0)
-    if total <= 0:
-        total = sum(c["votos"] for c in candidatos)
-        resumen["votos_totales"] = total
-    if total > 0:
-        for c in candidatos:
-            c["porcentaje"] = round((c["votos"] / total) * 100, 2)
-
-    error_validacion = validar_acta(candidatos, resumen)
-    if error_validacion:
-        return jsonify({"status": "error", "mensaje": error_validacion}), 400
-
-    resumen, _ = recalcular_padron(resumen)
-
-    ok = db.actualizar_acta(acta_id, numero, nombre, fecha, candidatos, resumen)
-    if not ok:
-        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
-
-    return jsonify({"status": "ok", "mensaje": "Acta actualizada"})
-
-
-@app.route("/api/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
-def eliminar_acta_manual(acta_id: int):
-    if request.method == "OPTIONS":
-        return ("", 204)
-
-    payload = request.get_json(silent=True) or {}
-    if not _admin_autorizado(payload):
-        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
-
     ok = db.eliminar_acta(acta_id)
     if not ok:
-        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
-
+        return jsonify({"status": "error", "mensaje": "Error al eliminar"}), 500
     return jsonify({"status": "ok", "mensaje": "Acta eliminada"})
+
+
+# ---------------- API ENDPOINTS FOR CGO ----------------
+
+@app.route("/api/cgo/actas", methods=["GET"])
+def listar_actas_cgo():
+    return jsonify({"status": "ok", "data": _armar_resultados_dashboard("CGO")})
+
+
+@app.route("/api/cgo/actas", methods=["POST", "OPTIONS"])
+def crear_acta_manual_cgo():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    return _crear_acta_sistema("CGO", cross_ref=False)
+
+
+@app.route("/api/cgo/actas/estado", methods=["GET"])
+def estado_actas_cgo():
+    return jsonify({"status": "ok", "data": db.obtener_estado("CGO")})
+
+
+@app.route("/api/cgo/actas/<int:acta_id>/pdf", methods=["GET"])
+def descargar_pdf_acta_cgo(acta_id: int):
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGO":
+        return jsonify({"status": "error", "mensaje": "Acta CGO no encontrada"}), 404
+    pdf = _armar_pdf_acta(acta)
+    nombre = f"acta_cgo_{acta_id}.pdf"
+    return Response(
+        pdf,
+        headers={
+            "Content-Type": "application/pdf",
+            "Content-Disposition": f'attachment; filename="{nombre}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.route("/api/cgo/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
+def eliminar_acta_manual_cgo(acta_id: int):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    if not _admin_autorizado(payload):
+        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGO":
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+    ok = db.eliminar_acta(acta_id)
+    if not ok:
+        return jsonify({"status": "error", "mensaje": "Error al eliminar"}), 500
+    return jsonify({"status": "ok", "mensaje": "Acta eliminada"})
+
+
+# ---------------- DEPRECATED COMPATIBILITY ENDPOINTS ----------------
+
+@app.route("/api/actas", methods=["GET", "POST", "OPTIONS"])
+def api_actas_compat():
+    if request.method == "POST":
+        return crear_acta_manual_cgr()
+    return listar_actas_cgr()
+
+
+@app.route("/api/actas/estado", methods=["GET"])
+def api_estado_compat():
+    return estado_actas_cgr()
+
+
+@app.route("/api/actas/<int:acta_id>/pdf", methods=["GET"])
+def api_pdf_compat(acta_id: int):
+    return descargar_pdf_acta_cgr(acta_id)
 
 
 @app.route("/upload", methods=["POST"])

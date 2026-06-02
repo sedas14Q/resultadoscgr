@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Resultados Electorales - STUNAM</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --cgo-color: #f59e0b;
+            --cgr-color: #3b82f6;
+            --cgo-hover: rgba(245, 158, 11, 0.15);
+            --cgr-hover: rgba(59, 130, 246, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'IBM+Plex+Sans', 'IBM Plex Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 0.15em;
+            color: #fff;
+            background: linear-gradient(135deg, var(--cgr-color), var(--cgo-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            max-width: 900px;
+            width: 90%;
+            z-index: 10;
+        }
+
+        @media (min-width: 768px) {
+            .portal-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .portal-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            opacity: 0.8;
+        }
+
+        .card-cgo::before {
+            background: var(--cgo-color);
+        }
+
+        .card-cgr::before {
+            background: var(--cgr-color);
+        }
+
+        .portal-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .card-cgo:hover {
+            box-shadow: 0 20px 40px -15px var(--cgo-hover);
+        }
+
+        .card-cgr:hover {
+            box-shadow: 0 20px 40px -15px var(--cgr-hover);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+        }
+
+        .btn-cgo {
+            background-color: var(--cgo-color);
+            color: #000;
+        }
+
+        .btn-cgo:hover {
+            background-color: #fbbf24;
+            transform: scale(1.02);
+        }
+
+        .btn-cgr {
+            background-color: var(--cgr-color);
+            color: #fff;
+        }
+
+        .btn-cgr:hover {
+            background-color: #60a5fa;
+            transform: scale(1.02);
+        }
+
+        .sub-link {
+            display: inline-block;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 2px;
+        }
+
+        .sub-link:hover {
+            color: #fff;
+            border-color: #fff;
+        }
+
+        footer {
+            margin-top: 4rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">STUNAM</div>
+        <h1>Portal de Resultados Electorales</h1>
+        <p class="subtitle">Selecciona el congreso al que deseas ingresar</p>
+    </header>
+
+    <div class="portal-grid">
+        <!-- Tarjeta CGO -->
+        <div class="portal-card card-cgo">
+            <span class="card-icon">⚡</span>
+            <h2>Congreso CGO XLIII</h2>
+            <p class="card-desc">Visualiza resultados en tiempo real y estadísticas generales del Congreso General Ordinario XLIII.</p>
+            <a href="/cgo" class="action-btn btn-cgo">Resultados CGO</a>
+            <a href="/cgo/formulario" class="sub-link">Ir al Formulario de Captura CGO</a>
+        </div>
+
+        <!-- Tarjeta CGR -->
+        <div class="portal-card card-cgr">
+            <span class="card-icon">🗳️</span>
+            <h2>Congreso CGR XXII</h2>
+            <p class="card-desc">Accede al panel de resultados, actas oficiales y estadísticas del Congreso General de Representantes XXII.</p>
+            <a href="/cgr" class="action-btn btn-cgr">Resultados CGR</a>
+            <a href="/cgr/formulario" class="sub-link">Ir al Formulario de Captura CGR</a>
+        </div>
+    </div>
+
+    <footer>
+        <p>&lt;/&gt; Technology for Sedas_A</p>
+    </footer>
+</body>
+</html>

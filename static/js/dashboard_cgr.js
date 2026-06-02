@@ -90,7 +90,7 @@
     if (!actaId) return;
 
     try {
-      const res = await fetch(`/api/actas/${actaId}`, {
+      const res = await fetch(`/api/cgr/actas/${actaId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cred),
@@ -183,7 +183,7 @@
       alert("No se pudo identificar el acta para descargar PDF.");
       return;
     }
-    window.open(`/api/actas/${actaId}/pdf`, "_blank");
+    window.open(`/api/cgr/actas/${actaId}/pdf`, "_blank");
   }
 
   function activarAccionesActa() {
@@ -309,7 +309,7 @@
       o si se ha eliminado alguna. Si detecta cambios, recarga la página para reflejarlos.
     */
     try {
-      const res = await fetch("/api/actas/estado", {
+      const res = await fetch("/api/cgr/actas/estado", {
         method: "GET",
         headers: { "Cache-Control": "no-cache" },
       });
@@ -580,6 +580,105 @@
       }
     });
   }
+
+  // Calcular estadísticas generales
+  function renderEstadisticasGenerales() {
+    const totalVotosPorPlanilla = {};
+    const totalDelegadosPorPlanilla = {};
+    
+    resultados.forEach(r => {
+      (r.planillas || []).forEach(p => {
+        const name = p.planilla || "Sin planilla";
+        totalVotosPorPlanilla[name] = (totalVotosPorPlanilla[name] || 0) + Number(p.votos || 0);
+        totalDelegadosPorPlanilla[name] = (totalDelegadosPorPlanilla[name] || 0) + Number(p.delegados_ganados || 0);
+      });
+    });
+    
+    const canvasVotos = document.getElementById("chart-total-votos");
+    const canvasDelegados = document.getElementById("chart-total-delegados");
+    
+    if (canvasVotos) {
+      const labels = Object.keys(totalVotosPorPlanilla);
+      const dataVotos = Object.values(totalVotosPorPlanilla);
+      const colores = labels.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
+      
+      new Chart(canvasVotos, {
+        type: "bar",
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#0f172a",
+              titleColor: "#f8fafc",
+              bodyColor: "#e2e8f0"
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#475569" }
+            },
+            x: {
+              ticks: { color: "#475569" }
+            }
+          }
+        },
+        data: {
+          labels,
+          datasets: [{
+            data: dataVotos,
+            backgroundColor: colores,
+            borderWidth: 1
+          }]
+        }
+      });
+    }
+    
+    if (canvasDelegados) {
+      const labels = Object.keys(totalDelegadosPorPlanilla);
+      const dataDelegados = Object.values(totalDelegadosPorPlanilla);
+      const colores = labels.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
+      
+      new Chart(canvasDelegados, {
+        type: "bar",
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#0f172a",
+              titleColor: "#f8fafc",
+              bodyColor: "#e2e8f0"
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#475569" }
+            },
+            x: {
+              ticks: { color: "#475569" }
+            }
+          }
+        },
+        data: {
+          labels,
+          datasets: [{
+            data: dataDelegados,
+            backgroundColor: colores,
+            borderWidth: 1
+          }]
+        }
+      });
+    }
+  }
+  
+  // Llamar a renderEstadisticasGenerales al cargar
+  setTimeout(renderEstadisticasGenerales, 100);
+
 })();
 
 

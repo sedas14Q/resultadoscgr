@@ -1,6 +1,7 @@
-﻿"""
-dependencias.py - Normaliza numero y nombre de dependencia con catalogo Excel.
-Uso actual: formulario manual.
+"""
+dependencias.py - Módulo para normalizar números y nombres de dependencias electorales.
+Carga directamente y bajo demanda el catálogo contenido en un archivo de Excel (.xlsx)
+para validar e identificar dependencias mediante búsquedas exactas o algoritmos difusos.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import xml.etree.ElementTree as ET
 from functools import lru_cache
 from pathlib import Path
 
+# Definición de rutas y namespaces de OpenXML para analizar el archivo XLSX
 BASE_DIR = Path(__file__).resolve().parent
 EXCEL_PATH = BASE_DIR / "baseDatos" / "BaseDatoDepAct.xlsx"
 NS_MAIN = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -20,6 +22,11 @@ NS_REL = "{http://schemas.openxmlformats.org/package/2006/relationships}Relation
 
 
 def _norm_texto(s: str | None) -> str:
+    """
+    Normaliza y limpia el texto para facilitar comparaciones uniformes.
+    Remueve diacríticos (acentos), reemplaza secuencias de espacios por uno solo,
+    elimina espacios externos y convierte el texto a mayúsculas.
+    """
     if not s:
         return ""
     txt = unicodedata.normalize("NFKD", str(s))
@@ -29,6 +36,10 @@ def _norm_texto(s: str | None) -> str:
 
 
 def _limpiar_numero(v: str | None) -> str | None:
+    """
+    Extrae únicamente los dígitos numéricos de una cadena, retornando el entero como texto.
+    Útil para limpiar claves de dependencia con formatos mixtos.
+    """
     if not v:
         return None
     m = re.findall(r"\d+", str(v))
@@ -36,6 +47,11 @@ def _limpiar_numero(v: str | None) -> str | None:
 
 
 def _leer_shared_strings(zf: zipfile.ZipFile) -> list[str]:
+    """
+    Extrae la lista de Shared Strings (cadenas compartidas) del archivo XML del XLSX.
+    En el formato de Excel OpenXML, los textos repetidos se indexan en un XML común
+    llamado 'sharedStrings.xml' para ahorrar espacio.
+    """
     if "xl/sharedStrings.xml" not in zf.namelist():
         return []
     root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
@@ -46,6 +62,10 @@ def _leer_shared_strings(zf: zipfile.ZipFile) -> list[str]:
 
 
 def _valor_celda(celda: ET.Element, shared: list[str]) -> str:
+    """
+    Obtiene el valor real de una celda XML. Si el atributo 't' es 's', el valor de la
+    celda representa un índice entero que apunta a la lista de Shared Strings.
+    """
     tipo = celda.attrib.get("t")
     v = celda.find("a:v", NS_MAIN)
     if v is None or v.text is None:
@@ -58,11 +78,18 @@ def _valor_celda(celda: ET.Element, shared: list[str]) -> str:
 
 @lru_cache(maxsize=1)
 def catalogo_dependencias() -> dict[str, str]:
+    """
+    Lee la primera hoja del archivo Excel (BaseDatoDepAct.xlsx) de forma nativa.
+    Carga el mapeo entre la CLAVE y la DEPENDENCIA.
+    Utiliza lru_cache para evitar re-leer el archivo en disco múltiples veces.
+    Retorna un diccionario de mapeo {número_clave: nombre_dependencia}.
+    """
     out: dict[str, str] = {}
     if not EXCEL_PATH.exists():
         return out
 
     try:
+        # Abre el XLSX como un archivo ZIP y lee las relaciones internas de hojas
         with zipfile.ZipFile(EXCEL_PATH) as zf:
             shared = _leer_shared_strings(zf)
             wb = ET.fromstring(zf.read("xl/workbook.xml"))
@@ -81,7 +108,7 @@ def catalogo_dependencias() -> dict[str, str]:
             if not rows:
                 return out
 
-            # Leer primera fila como encabezado
+            # Leer primera fila como encabezado para identificar qué columnas contienen la CLAVE y DEPENDENCIA
             header_map: dict[str, str] = {}
             first_cells = rows[0].findall("a:c", NS_MAIN)
             for c in first_cells:
@@ -94,6 +121,7 @@ def catalogo_dependencias() -> dict[str, str]:
             col_clave = next((col for col, h in header_map.items() if h == "CLAVE"), "A")
             col_dependencia = next((col for col, h in header_map.items() if h == "DEPENDENCIA"), "B")
 
+            # Itera a partir de la segunda fila y extrae los registros
             for row in rows[1:]:
                 celdas = {}
                 for c in row.findall("a:c", NS_MAIN):
@@ -112,13 +140,23 @@ def catalogo_dependencias() -> dict[str, str]:
 
 
 def normalizar_dependencia(numero: str | None, nombre: str | None) -> tuple[str | None, str | None]:
+    """
+    Intenta asociar los valores de entrada con una dependencia real del catálogo.
+    Flujo de normalización:
+    1. Si se ingresa una clave numérica que existe en el catálogo, devuelve esa clave y su dependencia oficial.
+    2. Si se ingresa una cadena de texto, busca coincidencias exactas con el nombre normalizado.
+    3. Si no hay coincidencia exacta, busca coincidencias difusas usando SequenceMatcher (Jaccard-like ratio).
+       Si la coincidencia supera el 72% de confianza, se asume correcta y se autocompletan los datos.
+    """
     numero_limpio = _limpiar_numero(numero)
     nombre_limpio = (nombre or "").strip() or None
 
     cat = catalogo_dependencias()
+    # 1. Coincidencia exacta por clave numérica
     if numero_limpio and numero_limpio in cat:
         return numero_limpio, cat[numero_limpio]
 
+    # 2. Búsqueda exacta y difusa por nombre
     if nombre_limpio and cat:
         nombre_norm = _norm_texto(nombre_limpio)
 
@@ -126,6 +164,7 @@ def normalizar_dependencia(numero: str | None, nombre: str | None) -> tuple[str 
             if _norm_texto(nom) == nombre_norm:
                 return num, nom
 
+        # Búsqueda difusa si no hay correspondencia exacta
         mejor_numero = None
         mejor_nombre = None
         mejor_score = 0.0
@@ -136,6 +175,7 @@ def normalizar_dependencia(numero: str | None, nombre: str | None) -> tuple[str 
                 mejor_numero = num
                 mejor_nombre = nom
 
+        # Umbral mínimo de coincidencia: 72%
         if mejor_numero and mejor_score >= 0.72:
             return mejor_numero, mejor_nombre
 

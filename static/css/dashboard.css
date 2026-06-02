@@ -1109,3 +1109,57 @@ header h1 {
         margin-left: 0;
     }
 }
+
+/* --- Seccion de Estadisticas en el Dashboard --- */
+.statistics-section {
+    max-width: 1100px;
+    margin: 24px auto 0;
+    padding: 0 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.stats-dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+    padding: 14px 28px;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: var(--radius-lg, 12px);
+    border: 2px solid var(--primary);
+    background: var(--surface);
+    color: var(--primary);
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.stats-dashboard-btn:hover {
+    background: var(--primary);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.stats-dashboard-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .statistics-section {
+        margin-top: 16px;
+        padding: 0 16px;
+    }
+    .stats-dashboard-btn {
+        padding: 12px 20px;
+        font-size: 14px;
+        max-width: 100%;
+    }
+}
+

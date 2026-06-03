@@ -1134,7 +1134,7 @@ header h1 {
     color: var(--primary);
     text-align: center;
     width: 100%;
-    max-width: 500px;
+    max-width: 100%;
     box-shadow: var(--shadow);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
@@ -1459,17 +1459,19 @@ body.portal-body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: var(--primary);
-    color: #fff;
+    background: #ffe100;
+    color: #000080;
+    border: 1.5px solid #000080;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
 }
 
 .back-btn:hover {
-    background: #0e7490;
+    background: #e6cb00;
+    color: #000080;
     transform: translateY(-1px);
 }
 

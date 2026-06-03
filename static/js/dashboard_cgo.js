@@ -579,6 +579,13 @@
   }
   if (duplicadosMenu) {
     duplicadosMenu.addEventListener("toggle", filtrarActas);
+    const btnMostrarTodas = document.getElementById("btn-mostrar-todas");
+    if (btnMostrarTodas) {
+      btnMostrarTodas.addEventListener("click", () => {
+        duplicadosMenu.open = false;
+        filtrarActas();
+      });
+    }
   }
   if (sortSelect) {
     sortSelect.addEventListener("change", ordenarCards);

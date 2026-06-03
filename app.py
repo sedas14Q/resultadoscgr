@@ -743,6 +743,14 @@ def _crear_acta_sistema(sistema: str, cross_ref: bool):
 
 # ---------------- WEB ROUTING VIEWS ----------------
 
+@app.route("/favicon.ico")
+def favicon():
+    """
+    Ruta para el favicon por defecto de los navegadores.
+    """
+    return app.send_static_file("favicon.svg")
+
+
 @app.route("/")
 def dashboard():
     """

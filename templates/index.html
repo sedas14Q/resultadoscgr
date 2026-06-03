@@ -99,11 +99,7 @@
     <div class="winner-banner">
 
         <div class="winner-main">
-
-            <span class="winner-banner-label">
-                Planilla ganadora
-            </span>
-
+            <span class="winner-banner-label">Planilla ganadora</span>
             <span class="winner-banner-value">
                 {% if r.empate %}
                     {% for g in r.ganadores %}
@@ -113,54 +109,11 @@
                     {{ r.ganador.planilla if r.ganador else "N/D" }}
                 {% endif %}
             </span>
-
         </div>
 
-        <div class="winner-side">
-
-            <span class="winner-mini-label">
-                Delegados Ganados
-            </span>
-
-            <span class="winner-mini-value delegados-inline-red">
-                {{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}
-            </span>
-
-        </div>
-
-        {# Cantidad de nombres a mostrar = delegados ganados de la planilla ganadora #}
-        {% set dg = (r.ganador.delegados_ganados | default(0, true) if r.ganador else 0) | int %}
-        {% set ns = namespace(delegados_nombres=[]) %}
-        {% if r.ganador and dg > 0 %}
-            {# Tomar solo los primeros dg candidatos validos #}
-            {% for nombre in (r.ganador.candidatos | default([], true)) %}
-                {% set n = (nombre | string | trim) %}
-                {% if n and n != "Sin nombre" and (ns.delegados_nombres | length) < dg %}
-                    {% set _ = ns.delegados_nombres.append(n) %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-        <div class="winner-side">
-            <span class="winner-mini-label">
-                Nombre de los Delegados que ganaron
-            </span>
-            <span class="winner-mini-value delegados-inline-red">
-                {% if ns.delegados_nombres %}
-                    {{ ns.delegados_nombres | join(", ") }}
-                {% else %}
-                    N/D
-                {% endif %}
-            </span>
-        </div>
-
-    </div>
-
-
-    <div class="winner-stats-grid">
-
-        <div class="winner-stat-box">
-            <span>Expresión política</span>
-            <strong>
+        <div class="winner-side" style="text-align: left; padding: 10px 14px;">
+            <span class="winner-mini-label">Expresión política</span>
+            <span class="winner-mini-value" style="color: var(--primary); font-size: 20px; line-height: 1.2;">
                 {% if r.empate %}
                     {% for g in r.ganadores %}
                         {{ g.expresion_politica or "N/D" }}{% if not loop.last %}, {% endif %}
@@ -168,29 +121,20 @@
                 {% else %}
                     {{ r.ganador.expresion_politica or "N/D" if r.ganador else "N/D" }}
                 {% endif %}
-            </strong>
+            </span>
         </div>
 
-        <div class="winner-stat-box">
-            <span>Votos ganador</span>
-            <strong>
-                {{ r.ganador.votos | default(0, true) if r.ganador else 0 }}
-            </strong>
+        <div class="winner-side">
+            <span class="winner-mini-label">Delegados Ganados</span>
+            <span class="winner-mini-value delegados-inline-red">
+                {{ r.ganador.delegados_ganados | default(0, true) if r.ganador else 0 }}
+            </span>
         </div>
 
-        <div class="winner-stat-box">
-            <span>Porcentaje</span>
-            <strong>
-                {{ r.ganador.porcentaje if r.ganador and r.ganador.porcentaje is not none else 0 }}%
-            </strong>
-        </div>
-<!--Informacion adicional -->
-        <div class="winner-stat-box">
-            <span>Votos totales adjudicados</span>
-            <strong>
-                {{ r.resumen.votos_totales | default(0, true) }}
-            </strong>
-        </div>
+    </div>
+
+
+    <div class="winner-stats-grid">
 
         <div class="winner-stat-box">
             <span>Votos nulos</span>

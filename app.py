@@ -13,13 +13,8 @@ import time
 from time import perf_counter
 from email.message import EmailMessage
 
-# Configurar zona horaria de México
-try:
-    os.environ['TZ'] = 'America/Mexico_City'
-    time.tzset()
-except AttributeError:
-    # Windows no soporta tzset, pero Render (Unix/Linux) sí
-    pass
+# La zona horaria se maneja de forma multiplataforma usando zoneinfo en las funciones que lo requieren
+
 
 from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -41,6 +36,20 @@ def _safe_text(value: str | None) -> str | None:
         return None
     txt = str(value).replace("\\", " ").replace('"', "")
     return " ".join(txt.split()).strip()
+
+
+def obtener_fecha_mexico() -> str:
+    """
+    Retorna la fecha actual en formato AAAA-MM-DD según la zona horaria de México (America/Mexico_City).
+    Funciona tanto en Windows como en servidores Linux de forma nativa sin requerir tzset.
+    """
+    from datetime import datetime
+    import zoneinfo
+    try:
+        tz = zoneinfo.ZoneInfo("America/Mexico_City")
+        return datetime.now(tz).strftime("%Y-%m-%d")
+    except Exception:
+        return datetime.now().strftime("%Y-%m-%d")
 
 
 def _to_int(value, default=0):
@@ -659,13 +668,7 @@ def _crear_acta_sistema(sistema: str, cross_ref: bool):
     nombre_raw = payload.get("nombre")
     fecha = _safe_text(payload.get("fecha"))
     if not fecha:
-        from datetime import datetime
-        import zoneinfo
-        try:
-            tz = zoneinfo.ZoneInfo("America/Mexico_City")
-            fecha = datetime.now(tz).strftime("%Y-%m-%d")
-        except Exception:
-            fecha = datetime.now().strftime("%Y-%m-%d")
+        fecha = obtener_fecha_mexico()
     capturista = _safe_text(payload.get("capturista"))
 
     if cross_ref:
@@ -759,22 +762,14 @@ def dashboard():
     return render_template("bienvenida.html")
 
 
-@app.route("/cgr")
-def dashboard_cgr():
+@app.route("/<any(cgr, cgo):sistema>")
+def dashboard_sistema(sistema: str):
     """
-    Dashboard de Resultados para CGR XXII.
+    Dashboard de Resultados para CGR XXII o CGO XLIII de forma dinámica.
     """
-    resultados = _armar_resultados_dashboard("CGR")
-    return render_template("resultados_cgr.html", resultados=resultados)
-
-
-@app.route("/cgo")
-def dashboard_cgo():
-    """
-    Dashboard de Resultados para CGO XLIII.
-    """
-    resultados = _armar_resultados_dashboard("CGO")
-    return render_template("resultados_cgo.html", resultados=resultados)
+    sistema_upper = sistema.upper()
+    resultados = _armar_resultados_dashboard(sistema_upper)
+    return render_template(f"resultados_{sistema}.html", resultados=resultados)
 
 
 def calcular_estadisticas_generales(resultados: list[dict]) -> dict:
@@ -849,83 +844,69 @@ def calcular_estadisticas_generales(resultados: list[dict]) -> dict:
     }
 
 
-@app.route("/cgr/estadisticas")
-def estadisticas_cgr():
+@app.route("/<any(cgr, cgo):sistema>/estadisticas")
+def estadisticas_sistema(sistema: str):
     """
-    Pagina dedicada a las estadisticas generales del CGR XXII.
+    Pagina dedicada a las estadisticas generales del CGR XXII o CGO XLIII.
     """
-    resultados = _armar_resultados_dashboard("CGR")
+    sistema_upper = sistema.upper()
+    resultados = _armar_resultados_dashboard(sistema_upper)
     estadisticas = calcular_estadisticas_generales(resultados)
-    return render_template("estadisticas_cgr.html", resultados=resultados, estadisticas=estadisticas)
+    return render_template(f"estadisticas_{sistema}.html", resultados=resultados, estadisticas=estadisticas)
 
 
-@app.route("/cgo/estadisticas")
-def estadisticas_cgo():
+@app.route("/<any(cgr, cgo):sistema>/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta(sistema: str, acta_id: int):
     """
-    Pagina dedicada a las estadisticas generales del CGO XLIII.
+    Pagina de detalle de un acta para CGR XXII o CGO XLIII.
     """
-    resultados = _armar_resultados_dashboard("CGO")
-    estadisticas = calcular_estadisticas_generales(resultados)
-    return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas)
-
-
-
-
-
-
-
-@app.route("/cgr/acta/<int:acta_id>", methods=["GET"])
-def detalle_acta_cgr(acta_id: int):
+    sistema_upper = sistema.upper()
     acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGR":
-        return Response("Acta no encontrada en CGR", status=404, mimetype="text/plain")
+    if not acta or acta.get("sistema") != sistema_upper:
+        return Response(f"Acta no encontrada en {sistema_upper}", status=404, mimetype="text/plain")
     resultado = _armar_resultado_desde_acta(acta)
-    return render_template("acta_detalle_cgr.html", r=resultado)
+    return render_template(f"acta_detalle_{sistema}.html", r=resultado)
 
 
-@app.route("/cgo/acta/<int:acta_id>", methods=["GET"])
-def detalle_acta_cgo(acta_id: int):
-    acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGO":
-        return Response("Acta no encontrada en CGO", status=404, mimetype="text/plain")
-    resultado = _armar_resultado_desde_acta(acta)
-    return render_template("acta_detalle_cgo.html", r=resultado)
+# ---------------- API ENDPOINTS (DYNAMICAL CGR / CGO) ----------------
+
+@app.route("/api/<any(cgr, cgo):sistema>/actas", methods=["GET"])
+def listar_actas(sistema: str):
+    sistema_upper = sistema.upper()
+    return jsonify({"status": "ok", "data": _armar_resultados_dashboard(sistema_upper)})
 
 
-# ---------------- API ENDPOINTS FOR CGR ----------------
-
-@app.route("/api/cgr/actas", methods=["GET"])
-def listar_actas_cgr():
-    return jsonify({"status": "ok", "data": _armar_resultados_dashboard("CGR")})
-
-
-@app.route("/api/cgr/actas", methods=["POST", "OPTIONS"])
-def crear_acta_manual_cgr():
+@app.route("/api/<any(cgr, cgo):sistema>/actas", methods=["POST", "OPTIONS"])
+def crear_acta_manual(sistema: str):
     if request.method == "OPTIONS":
         return ("", 204)
-    return _crear_acta_sistema("CGR", cross_ref=True)
+    sistema_upper = sistema.upper()
+    cross_ref = (sistema_upper == "CGR")
+    return _crear_acta_sistema(sistema_upper, cross_ref=cross_ref)
 
 
-@app.route("/api/cgr/actas/estado", methods=["GET"])
-def estado_actas_cgr():
-    return jsonify({"status": "ok", "data": db.obtener_estado("CGR")})
+@app.route("/api/<any(cgr, cgo):sistema>/actas/estado", methods=["GET"])
+def estado_actas(sistema: str):
+    sistema_upper = sistema.upper()
+    return jsonify({"status": "ok", "data": db.obtener_estado(sistema_upper)})
 
 
-@app.route("/api/cgr/estadisticas", methods=["GET"])
-def api_estadisticas_cgr():
-    resultados = _armar_resultados_dashboard("CGR")
+@app.route("/api/<any(cgr, cgo):sistema>/estadisticas", methods=["GET"])
+def api_estadisticas(sistema: str):
+    sistema_upper = sistema.upper()
+    resultados = _armar_resultados_dashboard(sistema_upper)
     stats = calcular_estadisticas_generales(resultados)
     return jsonify({"status": "ok", "data": stats})
 
 
-
-@app.route("/api/cgr/actas/<int:acta_id>/pdf", methods=["GET"])
-def descargar_pdf_acta_cgr(acta_id: int):
+@app.route("/api/<any(cgr, cgo):sistema>/actas/<int:acta_id>/pdf", methods=["GET"])
+def descargar_pdf_acta(sistema: str, acta_id: int):
+    sistema_upper = sistema.upper()
     acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGR":
-        return jsonify({"status": "error", "mensaje": "Acta CGR no encontrada"}), 404
+    if not acta or acta.get("sistema") != sistema_upper:
+        return jsonify({"status": "error", "mensaje": f"Acta {sistema_upper} no encontrada"}), 404
     pdf = _armar_pdf_acta(acta)
-    nombre = f"acta_cgr_{acta_id}.pdf"
+    nombre = f"acta_{sistema}_{acta_id}.pdf"
     return Response(
         pdf,
         headers={
@@ -936,75 +917,16 @@ def descargar_pdf_acta_cgr(acta_id: int):
     )
 
 
-@app.route("/api/cgr/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
-def eliminar_acta_manual_cgr(acta_id: int):
+@app.route("/api/<any(cgr, cgo):sistema>/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
+def eliminar_acta_manual(sistema: str, acta_id: int):
     if request.method == "OPTIONS":
         return ("", 204)
     payload = request.get_json(silent=True) or {}
     if not _admin_autorizado(payload):
         return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
+    sistema_upper = sistema.upper()
     acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGR":
-        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
-    ok = db.eliminar_acta(acta_id)
-    if not ok:
-        return jsonify({"status": "error", "mensaje": "Error al eliminar"}), 500
-    return jsonify({"status": "ok", "mensaje": "Acta eliminada"})
-
-
-# ---------------- API ENDPOINTS FOR CGO ----------------
-
-@app.route("/api/cgo/actas", methods=["GET"])
-def listar_actas_cgo():
-    return jsonify({"status": "ok", "data": _armar_resultados_dashboard("CGO")})
-
-
-@app.route("/api/cgo/actas", methods=["POST", "OPTIONS"])
-def crear_acta_manual_cgo():
-    if request.method == "OPTIONS":
-        return ("", 204)
-    return _crear_acta_sistema("CGO", cross_ref=False)
-
-
-@app.route("/api/cgo/actas/estado", methods=["GET"])
-def estado_actas_cgo():
-    return jsonify({"status": "ok", "data": db.obtener_estado("CGO")})
-
-
-@app.route("/api/cgo/estadisticas", methods=["GET"])
-def api_estadisticas_cgo():
-    resultados = _armar_resultados_dashboard("CGO")
-    stats = calcular_estadisticas_generales(resultados)
-    return jsonify({"status": "ok", "data": stats})
-
-
-
-@app.route("/api/cgo/actas/<int:acta_id>/pdf", methods=["GET"])
-def descargar_pdf_acta_cgo(acta_id: int):
-    acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGO":
-        return jsonify({"status": "error", "mensaje": "Acta CGO no encontrada"}), 404
-    pdf = _armar_pdf_acta(acta)
-    nombre = f"acta_cgo_{acta_id}.pdf"
-    return Response(
-        pdf,
-        headers={
-            "Content-Type": "application/pdf",
-            "Content-Disposition": f'attachment; filename="{nombre}"',
-            "Cache-Control": "no-store",
-        },
-    )
-
-
-@app.route("/api/cgo/actas/<int:acta_id>", methods=["DELETE", "OPTIONS"])
-def eliminar_acta_manual_cgo(acta_id: int):
-    if request.method == "OPTIONS":
-        return ("", 204)
-    payload = request.get_json(silent=True) or {}
-    if not _admin_autorizado(payload):
-        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
-    acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != "CGO":
+    if not acta or acta.get("sistema") != sistema_upper:
         return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
     ok = db.eliminar_acta(acta_id)
     if not ok:
@@ -1016,19 +938,21 @@ def eliminar_acta_manual_cgo(acta_id: int):
 
 @app.route("/api/actas", methods=["GET", "POST", "OPTIONS"])
 def api_actas_compat():
+    if request.method == "OPTIONS":
+        return ("", 204)
     if request.method == "POST":
-        return crear_acta_manual_cgr()
-    return listar_actas_cgr()
+        return crear_acta_manual("cgr")
+    return listar_actas("cgr")
 
 
 @app.route("/api/actas/estado", methods=["GET"])
 def api_estado_compat():
-    return estado_actas_cgr()
+    return estado_actas("cgr")
 
 
 @app.route("/api/actas/<int:acta_id>/pdf", methods=["GET"])
 def api_pdf_compat(acta_id: int):
-    return descargar_pdf_acta_cgr(acta_id)
+    return descargar_pdf_acta("cgr", acta_id)
 
 
 @app.route("/upload", methods=["POST"])

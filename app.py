@@ -9,8 +9,17 @@ from __future__ import annotations
 import os
 import math
 import smtplib
+import time
 from time import perf_counter
 from email.message import EmailMessage
+
+# Configurar zona horaria de México
+try:
+    os.environ['TZ'] = 'America/Mexico_City'
+    time.tzset()
+except AttributeError:
+    # Windows no soporta tzset, pero Render (Unix/Linux) sí
+    pass
 
 from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -649,6 +658,14 @@ def _crear_acta_sistema(sistema: str, cross_ref: bool):
     numero_raw = payload.get("numero")
     nombre_raw = payload.get("nombre")
     fecha = _safe_text(payload.get("fecha"))
+    if not fecha:
+        from datetime import datetime
+        import zoneinfo
+        try:
+            tz = zoneinfo.ZoneInfo("America/Mexico_City")
+            fecha = datetime.now(tz).strftime("%Y-%m-%d")
+        except Exception:
+            fecha = datetime.now().strftime("%Y-%m-%d")
     capturista = _safe_text(payload.get("capturista"))
 
     if cross_ref:

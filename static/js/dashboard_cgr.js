@@ -390,12 +390,14 @@
 
     const grupos = Array.from(mapa.values()).filter((items) => items.length > 1);
 
+    let totalDuplicados = 0;
     grupos.forEach((grupo) => {
+      totalDuplicados += grupo.length;
       grupo.forEach((item) => item.card.classList.add("is-duplicate"));
     });
 
     if (duplicateCount) {
-      duplicateCount.textContent = String(grupos.length);
+      duplicateCount.textContent = String(totalDuplicados);
     }
 
     if (duplicateList) {
@@ -408,8 +410,38 @@
         grupos.forEach((grupo, index) => {
           const item0 = grupo[0];
           const li = document.createElement("li");
-          const refs = grupo.map((x) => `acta ${x.idx}`).join(", ");
-          li.textContent = `Coincidencia ${index + 1}: dependencia ${item0.numero}, ${item0.nombre}, fecha ${item0.fecha} (${refs}).`;
+          li.style.padding = "6px 0";
+          li.style.listStyle = "none";
+          
+          const label = document.createElement("strong");
+          label.textContent = `Grupo ${index + 1} (${item0.nombre || 'N/D'} - Dep. ${item0.numero || 'N/D'}): `;
+          li.appendChild(label);
+
+          grupo.forEach((x, i) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "action-btn edit-btn";
+            btn.style.padding = "2px 8px";
+            btn.style.fontSize = "11px";
+            btn.style.marginLeft = "6px";
+            btn.style.cursor = "pointer";
+            btn.textContent = `Ver Tarjeta (Pos. ${x.idx})`;
+            btn.addEventListener("click", (e) => {
+              e.preventDefault();
+              x.card.scrollIntoView({ behavior: "smooth", block: "center" });
+              // Resaltado visual temporal
+              x.card.style.transition = "outline 0.3s ease, box-shadow 0.3s ease, transform 0.2s";
+              x.card.style.outline = "3px solid #f59e0b";
+              x.card.style.transform = "scale(1.02)";
+              x.card.style.boxShadow = "0 0 20px rgba(245, 158, 11, 0.7)";
+              setTimeout(() => {
+                x.card.style.outline = "";
+                x.card.style.transform = "";
+                x.card.style.boxShadow = "";
+              }, 2500);
+            });
+            li.appendChild(btn);
+          });
           duplicateList.appendChild(li);
         });
       }

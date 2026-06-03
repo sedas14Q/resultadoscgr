@@ -762,6 +762,78 @@ def dashboard():
     return render_template("bienvenida.html")
 
 
+def calcular_estadisticas_generales(resultados: list[dict]) -> dict:
+    """
+    Calcula estadísticas consolidadas del sistema, incluyendo:
+    - Actas computadas
+    - Votación total acumulada (suma de votos de todas las planillas)
+    - Puestos delegados disponibles (suma de delegados_totales de los resúmenes)
+    - Top dos planillas con:
+      - Nombre
+      - Delegados ganados
+      - Votos acumulados
+      - Porcentaje de votación
+      - Dependencias ganadas
+    """
+    actas_computadas = len(resultados)
+    votacion_total_acumulada = 0
+    puestos_delegados_disponibles = 0
+
+    planillas_datos = {} # planilla -> {nombre, votos, delegados_ganados, dependencias_ganadas}
+
+    for r in resultados:
+        resumen = r.get("resumen") or {}
+        puestos_delegados_disponibles += _to_int(resumen.get("delegados_totales"), 0)
+
+        # Ganador de esta acta/dependencia para contar dependencias ganadas
+        ganador_planilla = None
+        if not r.get("empate") and r.get("ganador"):
+            ganador_planilla = r["ganador"].get("planilla")
+
+        for p in r.get("planillas") or []:
+            nombre = p.get("planilla") or "Sin planilla"
+            votos = _to_int(p.get("votos"), 0)
+            delegados = _to_int(p.get("delegados_ganados"), 0)
+
+            votacion_total_acumulada += votos
+
+            if nombre not in planillas_datos:
+                planillas_datos[nombre] = {
+                    "nombre": nombre,
+                    "votos": 0,
+                    "delegados_ganados": 0,
+                    "dependencias_ganadas": 0,
+                }
+            
+            planillas_datos[nombre]["votos"] += votos
+            planillas_datos[nombre]["delegados_ganados"] += delegados
+            if ganador_planilla and nombre == ganador_planilla:
+                planillas_datos[nombre]["dependencias_ganadas"] += 1
+
+    # Convertir a lista y ordenar por votos descendentemente
+    lista_planillas = list(planillas_datos.values())
+    lista_planillas.sort(key=lambda x: x["votos"], reverse=True)
+
+    # Calcular porcentaje de votación para cada planilla y formatear votos
+    for p in lista_planillas:
+        if votacion_total_acumulada > 0:
+            p["porcentaje_votacion"] = round((p["votos"] / votacion_total_acumulada) * 100, 2)
+        else:
+            p["porcentaje_votacion"] = 0.0
+        p["votos_formateados"] = f"{p['votos']:,}"
+
+    top_dos = lista_planillas[:2]
+
+    return {
+        "actas_computadas": actas_computadas,
+        "votacion_total_acumulada": votacion_total_acumulada,
+        "votacion_total_acumulada_formateada": f"{votacion_total_acumulada:,}",
+        "puestos_delegados_disponibles": puestos_delegados_disponibles,
+        "puestos_delegados_disponibles_formateados": f"{puestos_delegados_disponibles:,}",
+        "top_dos_planillas": top_dos,
+    }
+
+
 @app.route("/cgr")
 def dashboard_cgr():
     """

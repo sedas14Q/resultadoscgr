@@ -762,110 +762,78 @@ def dashboard():
     return render_template("bienvenida.html")
 
 
-@app.route("/<any(cgr, cgo):sistema>")
-def dashboard_sistema(sistema: str):
+@app.route("/cgr")
+def dashboard_cgr():
     """
-    Dashboard de Resultados para CGR XXII o CGO XLIII de forma dinámica.
+    Dashboard de Resultados para CGR XXII.
     """
-    sistema_upper = sistema.upper()
-    resultados = _armar_resultados_dashboard(sistema_upper)
-    return render_template(f"resultados_{sistema}.html", resultados=resultados)
+    resultados = _armar_resultados_dashboard("CGR")
+    return render_template("resultados_cgr.html", resultados=resultados)
 
 
-def calcular_estadisticas_generales(resultados: list[dict]) -> dict:
+@app.route("/cgo")
+def dashboard_cgo():
     """
-    Calcula estadísticas consolidadas del sistema, incluyendo:
-    - Actas computadas
-    - Votación total acumulada (suma de votos de todas las planillas)
-    - Puestos delegados disponibles (suma de delegados_totales de los resúmenes)
-    - Top dos planillas con:
-      - Nombre
-      - Delegados ganados
-      - Votos acumulados
-      - Porcentaje de votación
-      - Dependencias ganadas
+    Dashboard de Resultados para CGO XLIII.
     """
-    actas_computadas = len(resultados)
-    votacion_total_acumulada = 0
-    puestos_delegados_disponibles = 0
-
-    planillas_datos = {} # planilla -> {nombre, votos, delegados_ganados, dependencias_ganadas}
-
-    for r in resultados:
-        resumen = r.get("resumen") or {}
-        puestos_delegados_disponibles += _to_int(resumen.get("delegados_totales"), 0)
-
-        # Ganador de esta acta/dependencia para contar dependencias ganadas
-        ganador_planilla = None
-        if not r.get("empate") and r.get("ganador"):
-            ganador_planilla = r["ganador"].get("planilla")
-
-        for p in r.get("planillas") or []:
-            nombre = p.get("planilla") or "Sin planilla"
-            votos = _to_int(p.get("votos"), 0)
-            delegados = _to_int(p.get("delegados_ganados"), 0)
-
-            votacion_total_acumulada += votos
-
-            if nombre not in planillas_datos:
-                planillas_datos[nombre] = {
-                    "nombre": nombre,
-                    "votos": 0,
-                    "delegados_ganados": 0,
-                    "dependencias_ganadas": 0,
-                }
-            
-            planillas_datos[nombre]["votos"] += votos
-            planillas_datos[nombre]["delegados_ganados"] += delegados
-            if ganador_planilla and nombre == ganador_planilla:
-                planillas_datos[nombre]["dependencias_ganadas"] += 1
-
-    # Convertir a lista y ordenar por votos descendentemente
-    lista_planillas = list(planillas_datos.values())
-    lista_planillas.sort(key=lambda x: x["votos"], reverse=True)
-
-    # Calcular porcentaje de votación para cada planilla y formatear votos
-    for p in lista_planillas:
-        if votacion_total_acumulada > 0:
-            p["porcentaje_votacion"] = round((p["votos"] / votacion_total_acumulada) * 100, 2)
-        else:
-            p["porcentaje_votacion"] = 0.0
-        p["votos_formateados"] = f"{p['votos']:,}"
-
-    top_dos = lista_planillas[:2]
-
-    return {
-        "actas_computadas": actas_computadas,
-        "votacion_total_acumulada": votacion_total_acumulada,
-        "votacion_total_acumulada_formateada": f"{votacion_total_acumulada:,}",
-        "puestos_delegados_disponibles": puestos_delegados_disponibles,
-        "puestos_delegados_disponibles_formateados": f"{puestos_delegados_disponibles:,}",
-        "top_dos_planillas": top_dos,
-    }
+    resultados = _armar_resultados_dashboard("CGO")
+    return render_template("resultados_cgo.html", resultados=resultados)
 
 
-@app.route("/<any(cgr, cgo):sistema>/estadisticas")
-def estadisticas_sistema(sistema: str):
+@app.route("/cgr/estadisticas")
+def estadisticas_cgr():
     """
-    Pagina dedicada a las estadisticas generales del CGR XXII o CGO XLIII.
+    Pagina dedicada a las estadisticas generales del CGR XXII.
     """
-    sistema_upper = sistema.upper()
-    resultados = _armar_resultados_dashboard(sistema_upper)
+    resultados = _armar_resultados_dashboard("CGR")
     estadisticas = calcular_estadisticas_generales(resultados)
-    return render_template(f"estadisticas_{sistema}.html", resultados=resultados, estadisticas=estadisticas)
+    return render_template("estadisticas_cgr.html", resultados=resultados, estadisticas=estadisticas)
 
 
-@app.route("/<any(cgr, cgo):sistema>/acta/<int:acta_id>", methods=["GET"])
-def detalle_acta(sistema: str, acta_id: int):
+@app.route("/cgo/estadisticas")
+def estadisticas_cgo():
     """
-    Pagina de detalle de un acta para CGR XXII o CGO XLIII.
+    Pagina dedicada a las estadisticas generales del CGO XLIII.
     """
-    sistema_upper = sistema.upper()
+    resultados = _armar_resultados_dashboard("CGO")
+    estadisticas = calcular_estadisticas_generales(resultados)
+    return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas)
+
+
+@app.route("/cgr/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta_cgr(acta_id: int):
+    """
+    Pagina de detalle de un acta para CGR XXII.
+    """
     acta = db.obtener_por_id(acta_id)
-    if not acta or acta.get("sistema") != sistema_upper:
-        return Response(f"Acta no encontrada en {sistema_upper}", status=404, mimetype="text/plain")
+    if not acta or acta.get("sistema") != "CGR":
+        return Response("Acta no encontrada en CGR", status=404, mimetype="text/plain")
     resultado = _armar_resultado_desde_acta(acta)
-    return render_template(f"acta_detalle_{sistema}.html", r=resultado)
+    return render_template("acta_detalle_cgr.html", r=resultado)
+
+
+@app.route("/cgo/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta_cgo(acta_id: int):
+    """
+    Pagina de detalle de un acta para CGO XLIII.
+    """
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGO":
+        return Response("Acta no encontrada en CGO", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_detalle_cgo.html", r=resultado)
+
+
+@app.route("/acta/<int:acta_id>", methods=["GET"])
+def detalle_acta(acta_id: int):
+    """
+    Ruta legacy de detalle de acta (CGR XXII por defecto para compatibilidad).
+    """
+    acta = db.obtener_por_id(acta_id)
+    if not acta:
+        return Response("Acta no encontrada", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_detalle.html", r=resultado)
 
 
 # ---------------- API ENDPOINTS (DYNAMICAL CGR / CGO) ----------------

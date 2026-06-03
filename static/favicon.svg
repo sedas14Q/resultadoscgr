@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="none">
   <path d="M12 2L23 21H1L12 2Z" fill="#ffe100" stroke="#000080" stroke-width="2" stroke-linejoin="round"/>
-  <text x="12" y="16.5" fill="#000080" font-family="'IBM Plex Sans', sans-serif" font-weight="900" font-size="9" text-anchor="middle" letter-spacing="-0.5">SI</text>
+  <text x="12" y="17.2" fill="#000080" font-family="'IBM Plex Sans', sans-serif" font-weight="900" font-size="8" text-anchor="middle" letter-spacing="-0.5">SI</text>
 </svg>

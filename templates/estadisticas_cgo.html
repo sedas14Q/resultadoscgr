@@ -46,12 +46,12 @@
             </div>
             <div class="stat-card-premium">
                 <span class="stat-card-label">Delegados en Contienda</span>
-                <span class="stat-card-value" id="val-delegados" style="color: var(--danger);">0</span>
+                <span class="stat-card-value" id="val-delegados" style="color: var(--text);">0</span>
                 <span class="stat-card-sub">Delegados totales </span>
             </div>
             <div class="stat-card-premium">
                 <span class="stat-card-label">Planilla Líder (Votos)</span>
-                <span class="stat-card-value" id="val-lider-votos" style="color: #d97706; font-size: 22px;">N/D</span>
+                <span class="stat-card-value" id="val-lider-votos" style="color: var(--text); font-size: 22px;">N/D</span>
                 <span class="stat-card-sub" id="val-lider-votos-sub">0 votos</span>
             </div>
         </div>
@@ -67,7 +67,7 @@
                             PLANILLA {{ loop.index }}
                         </span>
                         <span style="background: {% if loop.index == 1 %}rgba(22, 163, 74, 0.1){% else %}rgba(59, 130, 246, 0.1){% endif %}; color: {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %}; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
-                            #{{ loop.index }} en Votos
+                            {{ loop.index }} lugar
                         </span>
                     </div>
                     <span class="stat-card-value" style="font-size: 24px; margin-bottom: 12px;">{{ planilla.nombre }}</span>
@@ -78,7 +78,7 @@
                         </div>
                         <div>
                             <span style="color: var(--text-muted); display: block; font-size: 11px;">PORCENTAJE</span>
-                            <strong style="font-size: 15px; color: #f59e0b;">{{ planilla.porcentaje_votacion }}%</strong>
+                            <strong style="font-size: 15px; color: var(--danger);">{{ planilla.porcentaje_votacion }}%</strong>
                         </div>
                         <div>
                             <span style="color: var(--text-muted); display: block; font-size: 11px;">DELEGADOS GANADOS</span>
@@ -86,7 +86,7 @@
                         </div>
                         <div>
                             <span style="color: var(--text-muted); display: block; font-size: 11px;">DEPENDENCIAS GANADAS</span>
-                            <strong style="font-size: 15px; color: var(--primary);">{{ planilla.dependencias_ganadas }}</strong>
+                            <strong style="font-size: 15px; color: var(--text);">{{ planilla.dependencias_ganadas }}</strong>
                         </div>
                     </div>
                 </div>

@@ -752,13 +752,86 @@ def dashboard_cgo():
     return render_template("resultados_cgo.html", resultados=resultados)
 
 
+def calcular_estadisticas_generales(resultados: list[dict]) -> dict:
+    """
+    Calcula estadísticas consolidadas del sistema, incluyendo:
+    - Actas computadas
+    - Votación total acumulada (suma de votos de todas las planillas)
+    - Puestos delegados disponibles (suma de delegados_totales de los resúmenes)
+    - Top dos planillas con:
+      - Nombre
+      - Delegados ganados
+      - Votos acumulados
+      - Porcentaje de votación
+      - Dependencias ganadas
+    """
+    actas_computadas = len(resultados)
+    votacion_total_acumulada = 0
+    puestos_delegados_disponibles = 0
+
+    planillas_datos = {} # planilla -> {nombre, votos, delegados_ganados, dependencias_ganadas}
+
+    for r in resultados:
+        resumen = r.get("resumen") or {}
+        puestos_delegados_disponibles += _to_int(resumen.get("delegados_totales"), 0)
+
+        # Ganador de esta acta/dependencia para contar dependencias ganadas
+        ganador_planilla = None
+        if not r.get("empate") and r.get("ganador"):
+            ganador_planilla = r["ganador"].get("planilla")
+
+        for p in r.get("planillas") or []:
+            nombre = p.get("planilla") or "Sin planilla"
+            votos = _to_int(p.get("votos"), 0)
+            delegados = _to_int(p.get("delegados_ganados"), 0)
+
+            votacion_total_acumulada += votos
+
+            if nombre not in planillas_datos:
+                planillas_datos[nombre] = {
+                    "nombre": nombre,
+                    "votos": 0,
+                    "delegados_ganados": 0,
+                    "dependencias_ganadas": 0,
+                }
+            
+            planillas_datos[nombre]["votos"] += votos
+            planillas_datos[nombre]["delegados_ganados"] += delegados
+            if ganador_planilla and nombre == ganador_planilla:
+                planillas_datos[nombre]["dependencias_ganadas"] += 1
+
+    # Convertir a lista y ordenar por votos descendentemente
+    lista_planillas = list(planillas_datos.values())
+    lista_planillas.sort(key=lambda x: x["votos"], reverse=True)
+
+    # Calcular porcentaje de votación para cada planilla y formatear votos
+    for p in lista_planillas:
+        if votacion_total_acumulada > 0:
+            p["porcentaje_votacion"] = round((p["votos"] / votacion_total_acumulada) * 100, 2)
+        else:
+            p["porcentaje_votacion"] = 0.0
+        p["votos_formateados"] = f"{p['votos']:,}"
+
+    top_dos = lista_planillas[:2]
+
+    return {
+        "actas_computadas": actas_computadas,
+        "votacion_total_acumulada": votacion_total_acumulada,
+        "votacion_total_acumulada_formateada": f"{votacion_total_acumulada:,}",
+        "puestos_delegados_disponibles": puestos_delegados_disponibles,
+        "puestos_delegados_disponibles_formateados": f"{puestos_delegados_disponibles:,}",
+        "top_dos_planillas": top_dos,
+    }
+
+
 @app.route("/cgr/estadisticas")
 def estadisticas_cgr():
     """
     Pagina dedicada a las estadisticas generales del CGR XXII.
     """
     resultados = _armar_resultados_dashboard("CGR")
-    return render_template("estadisticas_cgr.html", resultados=resultados)
+    estadisticas = calcular_estadisticas_generales(resultados)
+    return render_template("estadisticas_cgr.html", resultados=resultados, estadisticas=estadisticas)
 
 
 @app.route("/cgo/estadisticas")
@@ -767,7 +840,9 @@ def estadisticas_cgo():
     Pagina dedicada a las estadisticas generales del CGO XLIII.
     """
     resultados = _armar_resultados_dashboard("CGO")
-    return render_template("estadisticas_cgo.html", resultados=resultados)
+    estadisticas = calcular_estadisticas_generales(resultados)
+    return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas)
+
 
 
 
@@ -809,6 +884,14 @@ def crear_acta_manual_cgr():
 @app.route("/api/cgr/actas/estado", methods=["GET"])
 def estado_actas_cgr():
     return jsonify({"status": "ok", "data": db.obtener_estado("CGR")})
+
+
+@app.route("/api/cgr/estadisticas", methods=["GET"])
+def api_estadisticas_cgr():
+    resultados = _armar_resultados_dashboard("CGR")
+    stats = calcular_estadisticas_generales(resultados)
+    return jsonify({"status": "ok", "data": stats})
+
 
 
 @app.route("/api/cgr/actas/<int:acta_id>/pdf", methods=["GET"])
@@ -861,6 +944,14 @@ def crear_acta_manual_cgo():
 @app.route("/api/cgo/actas/estado", methods=["GET"])
 def estado_actas_cgo():
     return jsonify({"status": "ok", "data": db.obtener_estado("CGO")})
+
+
+@app.route("/api/cgo/estadisticas", methods=["GET"])
+def api_estadisticas_cgo():
+    resultados = _armar_resultados_dashboard("CGO")
+    stats = calcular_estadisticas_generales(resultados)
+    return jsonify({"status": "ok", "data": stats})
+
 
 
 @app.route("/api/cgo/actas/<int:acta_id>/pdf", methods=["GET"])

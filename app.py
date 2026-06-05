@@ -1109,28 +1109,48 @@ def exportar_excel(sistema: str):
 
             delegados_sum = 0
             planilla_encontrada = False
+            
+            nombres_en_acta = []
+            expresiones_en_acta = []
+
             for p in r_acta.get("planillas", []):
                 norm_p = _normalizar_para_cruce(p.get("planilla"))
                 if norm_p in nombres_normalizados:
                     delegados_sum += _to_int(p.get("delegados_ganados"), 0)
                     planilla_encontrada = True
+                    
+                    # Recuperar el nombre original según fue seleccionado para mantener el formato
+                    for item in items_a_exportar:
+                        if _normalizar_para_cruce(item.get("nombre", "")) == norm_p:
+                            nombres_en_acta.append(item.get("nombre", "").strip())
+                            if item.get("expresion", "").strip():
+                                expresiones_en_acta.append(item.get("expresion", "").strip())
+                            break
 
             # Solo escribir si alguna de las planillas seleccionadas está en el acta
             if not planilla_encontrada:
                 continue
+                
+            # Eliminar duplicados si los hubiera y unir
+            nombres_unicos = list(dict.fromkeys(nombres_en_acta))
+            expresiones_unicas = list(dict.fromkeys(expresiones_en_acta))
+            
+            fila_nombre = " / ".join(nombres_unicos)
+            fila_exp = " / ".join(expresiones_unicas)
+            fila_texto_admon = f"{fila_nombre} ({fila_exp})" if fila_exp else fila_nombre
 
-            # Hoja Admon: buscar fila y escribir nombre consolidado + suma delegados
+            # Hoja Admon: buscar fila y escribir nombre de la(s) planilla(s) reales en esta dependencia + suma delegados
             for r_excel, clave_ex, nombre_ex in sheet1_rows:
                 if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                    ws1.cell(row=r_excel, column=5).value = texto_admon
+                    ws1.cell(row=r_excel, column=5).value = fila_texto_admon
                     ws1.cell(row=r_excel, column=6).value = delegados_sum
                     break
 
-            # Hoja Academ: buscar fila y escribir nombre consolidado + suma delegados
+            # Hoja Academ: buscar fila y escribir nombre de la(s) planilla(s) reales en esta dependencia + suma delegados
             for r_excel, clave_ex, nombre_ex in sheet2_rows:
                 if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                    ws2.cell(row=r_excel, column=5).value = nombre_consolidado
-                    ws2.cell(row=r_excel, column=6).value = expresion_consolidada
+                    ws2.cell(row=r_excel, column=5).value = fila_nombre
+                    ws2.cell(row=r_excel, column=6).value = fila_exp
                     ws2.cell(row=r_excel, column=7).value = delegados_sum
                     break
 

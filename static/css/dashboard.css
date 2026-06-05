@@ -1465,6 +1465,9 @@ body.portal-body {
     padding: 10px 18px;
     border-radius: 8px;
     font-weight: 700;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
     text-decoration: none;
     transition: background 0.2s, transform 0.1s, color 0.2s;
 }

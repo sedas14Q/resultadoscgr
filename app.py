@@ -1062,119 +1062,86 @@ def exportar_excel(sistema: str):
             nombre_val = ws2.cell(row=r, column=3).value  # Columna C = Dependencia
             sheet2_rows.append((r, clave_val, nombre_val))
 
-        # Limpiar columnas dinámicas SIN tocar la columna G(7) de Admon
-        # que contiene datos fijos de "Delegados totales por definir"
-        # IMPORTANTE: Solo limpiar filas de datos (1-228), NO tocar fila 229+
-        # porque tienen fórmulas del template (=SUM en D229, G229, H229) y datos en fila 230
+        # Limpiar SOLAMENTE las columnas base del template
+        # Hoja Admon: limpiar E(5) y F(6), sin tocar G(7)
         for r in range(1, 229):
             ws1.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
             ws1.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
-            # NO tocar columna G(7) - tiene datos fijos del template
-            for col in range(8, 27):  # Columnas H en adelante (planillas adicionales)
-                ws1.cell(row=r, column=col).value = None
 
-        # Hoja Academ: limpiar columnas E(5) en adelante, solo filas de datos (1-227)
-        # NO tocar fila 228 que tiene fórmulas del template
+        # Hoja Academ: limpiar E(5), F(6) y G(7)
         for r in range(1, 228):
-            for col in range(5, 27):
+            for col in range(5, 8):
                 ws2.cell(row=r, column=col).value = None
 
-        # Procesar cada planilla seleccionada para exportar
-        for idx, item in enumerate(items_a_exportar):
-            nombre_planilla = item.get("nombre", "")
-            expresion = item.get("expresion", "")
+        # =====================================================
+        # --- Generar nombres consolidados para el encabezado ---
+        # =====================================================
+        nombres_planillas = [item.get("nombre", "").strip() for item in items_a_exportar if item.get("nombre", "").strip()]
+        expresiones_planillas = [item.get("expresion", "").strip() for item in items_a_exportar if item.get("expresion", "").strip()]
+        
+        nombre_consolidado = " / ".join(nombres_planillas)
+        expresion_consolidada = " / ".join(expresiones_planillas)
+        texto_admon = f"{nombre_consolidado} ({expresion_consolidada})" if expresion_consolidada else nombre_consolidado
 
-            # =====================================================
-            # Columnas para Hoja Admon (2 columnas por planilla: nombre + delegados)
-            # La primera planilla usa E(5) y F(6). La columna G(7) es fija del template.
-            # Las planillas adicionales usan 2 columnas desde H(8) en adelante.
-            # =====================================================
-            if idx == 0:
-                s1_col_nombre = 5      # Columna E
-                s1_col_delegados = 6   # Columna F
-            else:
-                s1_col_nombre = 6 + 2 * idx      # idx=1 -> H(8), idx=2 -> J(10)
-                s1_col_delegados = 7 + 2 * idx   # idx=1 -> I(9), idx=2 -> K(11)
+        # Nombres normalizados para el cruce
+        nombres_normalizados = [_normalizar_para_cruce(p) for p in nombres_planillas]
 
-            s1_col_delegados_letra = get_column_letter(s1_col_delegados)
+        # =====================================================
+        # --- Encabezados Hoja Admon (fila 1) ---
+        # =====================================================
+        ws1.cell(row=1, column=5).value = "Nombre de la Planilla"
+        ws1.cell(row=1, column=6).value = "Delgados GANADOS"
 
-            # =====================================================
-            # Columnas para Hoja Academ (3 columnas por planilla: nombre + expresion + delegados)
-            # =====================================================
-            s2_col_nombre = 5 + 3 * idx       # E(5), H(8), K(11)...
-            s2_col_expresion = 6 + 3 * idx    # F(6), I(9), L(12)...
-            s2_col_delegados = 7 + 3 * idx    # G(7), J(10), M(13)...
+        # =====================================================
+        # --- Encabezados Hoja Academ (fila 1) ---
+        # =====================================================
+        ws2.cell(row=1, column=5).value = "Nombre de la Planilla"
+        ws2.cell(row=1, column=6).value = "Corrientes que la integran"
+        ws2.cell(row=1, column=7).value = f"Delgados que corresponden al {nombre_consolidado}"
 
-            s2_col_delegados_letra = get_column_letter(s2_col_delegados)
+        # =====================================================
+        # --- Cruzar datos de actas con dependencias del Excel ---
+        # Se suman los delegados de las planillas seleccionadas
+        # =====================================================
+        for r_acta in resultados:
+            numero_db = str(r_acta.get("numero", "")).strip()
+            nombre_db = str(r_acta.get("nombre", "")).strip()
 
-            # Texto de identificación de la planilla (nombre + expresión si existe)
-            texto_planilla = f"{nombre_planilla} ({expresion})" if expresion else nombre_planilla
+            delegados_sum = 0
+            planilla_encontrada = False
+            for p in r_acta.get("planillas", []):
+                norm_p = _normalizar_para_cruce(p.get("planilla"))
+                if norm_p in nombres_normalizados:
+                    delegados_sum += _to_int(p.get("delegados_ganados"), 0)
+                    planilla_encontrada = True
 
-            # =====================================================
-            # --- Encabezados Hoja Admon (fila 1) ---
-            # =====================================================
-            ws1.cell(row=1, column=s1_col_nombre).value = "Nombre de la Planilla"
-            ws1.cell(row=1, column=s1_col_delegados).value = "Delgados GANADOS"
-            # La columna G(7) ya tiene su header "Delegados totales por definir" del template
+            # Solo escribir si alguna de las planillas seleccionadas está en el acta
+            if not planilla_encontrada:
+                continue
 
-            # =====================================================
-            # --- Encabezados Hoja Academ (fila 1) ---
-            # =====================================================
-            ws2.cell(row=1, column=s2_col_nombre).value = "Nombre de la Planilla"
-            ws2.cell(row=1, column=s2_col_expresion).value = "Corrientes que la integran"
-            ws2.cell(row=1, column=s2_col_delegados).value = f"Delgados que corresponden al {nombre_planilla}"
+            # Hoja Admon: buscar fila y escribir nombre consolidado + suma delegados
+            for r_excel, clave_ex, nombre_ex in sheet1_rows:
+                if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                    ws1.cell(row=r_excel, column=5).value = texto_admon
+                    ws1.cell(row=r_excel, column=6).value = delegados_sum
+                    break
 
-            # =====================================================
-            # --- Cruzar datos de actas con dependencias del Excel ---
-            # SOLO rellenar nombre de planilla y delegados donde haya acta
-            # Las filas sin acta quedan vacías (no se rellena todo)
-            # =====================================================
-            for r_acta in resultados:
-                numero_db = str(r_acta.get("numero", "")).strip()
-                nombre_db = str(r_acta.get("nombre", "")).strip()
+            # Hoja Academ: buscar fila y escribir nombre consolidado + suma delegados
+            for r_excel, clave_ex, nombre_ex in sheet2_rows:
+                if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                    ws2.cell(row=r_excel, column=5).value = nombre_consolidado
+                    ws2.cell(row=r_excel, column=6).value = expresion_consolidada
+                    ws2.cell(row=r_excel, column=7).value = delegados_sum
+                    break
 
-                # Buscar los delegados ganados de esta planilla en el acta actual
-                delegados_ganados = 0
-                planilla_encontrada = False
-                for p in r_acta.get("planillas", []):
-                    if _normalizar_para_cruce(p.get("planilla")) == _normalizar_para_cruce(nombre_planilla):
-                        delegados_ganados = _to_int(p.get("delegados_ganados"), 0)
-                        planilla_encontrada = True
-                        break
+        # =====================================================
+        # --- Fórmula de suma total de delegados ganados ---
+        # =====================================================
+        # Hoja Admon: suma de delegados ganados en fila 229 (Columna F)
+        ws1.cell(row=229, column=6).value = "=SUM(F2:F228)"
 
-                # Solo escribir si encontramos datos de esta planilla en el acta
-                if not planilla_encontrada:
-                    continue
-
-                # Hoja Admon: buscar fila y escribir nombre + delegados
-                for r_excel, clave_ex, nombre_ex in sheet1_rows:
-                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws1.cell(row=r_excel, column=s1_col_nombre).value = texto_planilla
-                        ws1.cell(row=r_excel, column=s1_col_delegados).value = delegados_ganados
-                        break
-
-                # Hoja Academ: buscar fila y escribir nombre + expresion + delegados
-                for r_excel, clave_ex, nombre_ex in sheet2_rows:
-                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws2.cell(row=r_excel, column=s2_col_nombre).value = nombre_planilla
-                        ws2.cell(row=r_excel, column=s2_col_expresion).value = expresion
-                        ws2.cell(row=r_excel, column=s2_col_delegados).value = delegados_ganados
-                        break
-
-            # =====================================================
-            # --- Fórmula de suma total de delegados ganados ---
-            # El template tiene en fila 229 de Admon:
-            #   D229=SUM(D3:D228) -> suma de Registros
-            #   G229=SUM(G2:G228) -> suma de Delegados totales por definir
-            # NO existe fórmula para sumar delegados ganados (col F),
-            # así que la generamos siempre para cada planilla.
-            # =====================================================
-
-            # Hoja Admon: fórmula de suma de delegados ganados en fila 229
-            ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
-
-            # Hoja Academ: fórmula de suma de delegados ganados en fila 228
-            ws2.cell(row=228, column=s2_col_delegados).value = f"=SUM({s2_col_delegados_letra}2:{s2_col_delegados_letra}227)"
+        # Hoja Academ: suma de delegados ganados en fila 228 (Columna G)
+        ws2.cell(row=228, column=7).value = "=SUM(G2:G227)"
 
         # Guardar el archivo Excel en memoria y enviarlo como descarga
         output = BytesIO()

@@ -1070,16 +1070,33 @@ def exportar_excel(sistema: str):
             col_delegados_letter = get_column_letter(col_delegados_idx)
             col_sum_letter = get_column_letter(col_sum_idx)
             
-            ws1.cell(row=1, column=col_name_idx).value = f"{nombre} ({expresion})" if expresion else nombre
+            # --- Sheet 1 (Admon) ---
+            # Headers
+            ws1.cell(row=1, column=col_name_idx).value = "Nombre de la Planilla"
+            ws1.cell(row=1, column=col_delegados_idx).value = "Delgados GANADOS"
+            ws1.cell(row=1, column=col_sum_idx).value = "Delegados totales por definir"
+            
+            # Initialize all rows (Name + Expression in Column E, 0 in Column F)
             for r in range(2, 229):
+                ws1.cell(row=r, column=col_name_idx).value = f"{nombre} ({expresion})" if expresion else nombre
                 ws1.cell(row=r, column=col_delegados_idx).value = 0
+            
+            # Formula de suma
             ws1.cell(row=229, column=col_sum_idx).value = f"=SUM({col_delegados_letter}2:{col_delegados_letter}228)"
             
-            ws2.cell(row=1, column=col_name_idx).value = nombre
-            ws2.cell(row=1, column=col_delegados_idx).value = expresion
+            # --- Sheet 2 (Academ) ---
+            # Headers
+            ws2.cell(row=1, column=col_name_idx).value = "Nombre de la Planilla"
+            ws2.cell(row=1, column=col_delegados_idx).value = "Corrientes que la integran"
             ws2.cell(row=1, column=col_sum_idx).value = f"Delgados que corresponden al {nombre}"
+            
+            # Initialize all rows (Name in Column E, Expression in Column F, 0 in Column G)
             for r in range(2, 228):
+                ws2.cell(row=r, column=col_name_idx).value = nombre
+                ws2.cell(row=r, column=col_delegados_idx).value = expresion
                 ws2.cell(row=r, column=col_sum_idx).value = 0
+                
+            # Formula de suma
             ws2.cell(row=228, column=col_sum_idx).value = f"=SUM({col_sum_letter}2:{col_sum_letter}227)"
             
             for r_acta in resultados:

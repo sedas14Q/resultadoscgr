@@ -194,6 +194,29 @@
         </div>
     </div>
 
+    <!-- Segundo Modal de Confirmación -->
+    <div id="confirm-export-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 1050; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--bg-card, #fff); padding: 25px; border-radius: var(--radius, 12px); width: 90%; max-width: 500px; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2); box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--text); font-size: 18px; font-weight: 700;">Confirmar Planillas</h3>
+                <button type="button" id="btn-close-confirm-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted, #64748b); line-height: 1;">&times;</button>
+            </div>
+            <p style="color: var(--text-muted, #64748b); font-size: 13px; margin-bottom: 15px; line-height: 1.4;">
+                Se ha consolidado la información. Las siguientes planillas se exportarán y se sumarán sus delegados en caso de coincidir en la misma dependencia:
+            </p>
+            <div id="confirm-export-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg, #f8fafc); border-radius: 8px; border: 1px solid var(--border); color: var(--text); font-weight: 500; font-size: 14px;">
+                <!-- Lista de confirmación inyectada por JS -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <button type="button" id="btn-editar-export" class="action-btn delete-btn" style="padding: 10px 18px; font-weight: 600; border-radius: 8px;">Editar Selección</button>
+                <button type="button" id="btn-final-download" class="action-btn edit-btn" style="padding: 10px 18px; font-weight: 600; border-radius: 8px; background-color: #16a34a; border-color: #16a34a; display: flex; align-items: center; gap: 8px;">
+                    <svg id="spinner-export" style="display: none; animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    <span>Descargar Excel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script id="resultados-json" type="application/json">{{ resultados | tojson }}</script>
     <script>
         (function() {
@@ -549,7 +572,7 @@
                         cb.type = "checkbox";
                         cb.value = p;
                         cb.className = "excel-export-cb";
-                        cb.checked = true;
+                        cb.checked = false;
                         
                         const exp = expresionPlanilla[p] || "";
                         const displayText = exp ? `${p} (${exp})` : p;
@@ -582,15 +605,59 @@
                 document.querySelectorAll(".excel-export-cb").forEach(cb => cb.checked = false);
             });
 
-            btnConfirmExcel.addEventListener("click", async () => {
+            // Lógica para mostrar Segundo Modal
+            const confirmModal = document.getElementById("confirm-export-modal");
+            const btnCloseConfirmModal = document.getElementById("btn-close-confirm-modal");
+            const confirmListContainer = document.getElementById("confirm-export-list");
+            const btnEditarExport = document.getElementById("btn-editar-export");
+            const btnFinalDownload = document.getElementById("btn-final-download");
+            const spinnerExport = document.getElementById("spinner-export");
+
+            const closeConfirmModal = () => {
+                confirmModal.style.display = "none";
+            };
+
+            btnCloseConfirmModal.addEventListener("click", closeConfirmModal);
+            
+            btnEditarExport.addEventListener("click", () => {
+                closeConfirmModal();
+                exportModal.style.display = "flex";
+            });
+
+            btnConfirmExcel.addEventListener("click", () => {
                 const checkedCbs = Array.from(document.querySelectorAll(".excel-export-cb:checked"));
                 if (checkedCbs.length === 0) {
                     alert("Por favor selecciona al menos 1 planilla para exportar.");
                     return;
                 }
 
-                btnConfirmExcel.disabled = true;
-                btnConfirmExcel.textContent = "Generando...";
+                // Llenar la lista del segundo modal
+                confirmListContainer.innerHTML = "";
+                checkedCbs.forEach(cb => {
+                    const name = cb.value;
+                    const exp = expresionPlanilla[name] || "";
+                    const displayText = exp ? `${name} (${exp})` : name;
+                    
+                    const item = document.createElement("div");
+                    item.style.padding = "6px 0";
+                    item.style.borderBottom = "1px solid var(--border)";
+                    item.innerHTML = `✔️ ${displayText}`;
+                    confirmListContainer.appendChild(item);
+                });
+
+                // Ocultar modal 1 y mostrar modal 2
+                exportModal.style.display = "none";
+                confirmModal.style.display = "flex";
+            });
+
+            btnFinalDownload.addEventListener("click", async () => {
+                const checkedCbs = Array.from(document.querySelectorAll(".excel-export-cb:checked"));
+                if (checkedCbs.length === 0) return;
+
+                btnFinalDownload.disabled = true;
+                spinnerExport.style.display = "inline-block";
+                const spanText = btnFinalDownload.querySelector("span");
+                if(spanText) spanText.textContent = "Generando...";
 
                 const planillasToExport = checkedCbs.map(cb => {
                     const name = cb.value;
@@ -602,7 +669,7 @@
 
                 try {
                     const pathParts = window.location.pathname.split('/');
-                    const sistema = pathParts[1] || 'cgo';
+                    const sistema = pathParts[1] || 'cgr';
                     
                     const response = await fetch(`/api/${sistema}/exportar-excel`, {
                         method: "POST",
@@ -637,14 +704,15 @@
                     a.click();
                     a.remove();
                     window.URL.revokeObjectURL(url);
-                    closeModal();
+                    closeConfirmModal();
                 } catch (error) {
                     alert("Ocurrió un error al exportar: " + error.message);
                 } finally {
-                    btnConfirmExcel.disabled = false;
-                    btnConfirmExcel.textContent = "Descargar Excel";
+                    btnFinalDownload.disabled = false;
+                    spinnerExport.style.display = "none";
+                    if(spanText) spanText.textContent = "Descargar Excel";
                 }
-            });
+            });});
         })();
     </script>
     <footer class="pie-de-pagina">

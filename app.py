@@ -1163,21 +1163,17 @@ def exportar_excel(sistema: str):
 
             # =====================================================
             # --- Fórmula de suma total de delegados ganados ---
-            # La fila 229 del template ya tiene fórmulas:
-            #   D229=SUM(D3:D228), G229=SUM(F2:F228), H229=SUM(G2:G228)
-            # Para la primera planilla (idx=0), G229 ya suma F (delegados ganados)
-            # Para planillas adicionales, generamos la fórmula en su columna
+            # El template tiene en fila 229 de Admon:
+            #   D229=SUM(D3:D228) -> suma de Registros
+            #   G229=SUM(G2:G228) -> suma de Delegados totales por definir
+            # NO existe fórmula para sumar delegados ganados (col F),
+            # así que la generamos siempre para cada planilla.
             # =====================================================
 
-            if idx == 0:
-                # La primera planilla: la fórmula ya existe en G229 del template
-                # que suma =SUM(F2:F228), no necesitamos duplicarla
-                pass
-            else:
-                # Planillas adicionales: crear fórmula de suma en la fila 229
-                ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
+            # Hoja Admon: fórmula de suma de delegados ganados en fila 229
+            ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
 
-            # Hoja Academ: suma en fila 228 (después de la última dependencia fila 227)
+            # Hoja Academ: fórmula de suma de delegados ganados en fila 228
             ws2.cell(row=228, column=s2_col_delegados).value = f"=SUM({s2_col_delegados_letra}2:{s2_col_delegados_letra}227)"
 
         # Guardar el archivo Excel en memoria y enviarlo como descarga

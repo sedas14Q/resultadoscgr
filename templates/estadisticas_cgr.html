@@ -530,7 +530,7 @@
 
             btnReset.addEventListener("click", () => {
                 currentVotos = { ...originalVotosPlanilla };
-                currentDelegados = { ...originalDelegadosPayload = originalDelegadosPlanilla };
+                currentDelegados = { ...originalDelegadosPlanilla };
                 
                 // Desmarcar todo
                 document.querySelectorAll(".alliance-cb").forEach(cb => cb.checked = false);
@@ -712,7 +712,7 @@
                     spinnerExport.style.display = "none";
                     if(spanText) spanText.textContent = "Descargar Excel";
                 }
-            });});
+            });
         })();
     </script>
     <footer class="pie-de-pagina">

@@ -1064,15 +1064,18 @@ def exportar_excel(sistema: str):
 
         # Limpiar columnas dinámicas SIN tocar la columna G(7) de Admon
         # que contiene datos fijos de "Delegados totales por definir"
-        for r in range(1, 230):
+        # IMPORTANTE: Solo limpiar filas de datos (1-228), NO tocar fila 229+
+        # porque tienen fórmulas del template (=SUM en D229, G229, H229) y datos en fila 230
+        for r in range(1, 229):
             ws1.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
             ws1.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
-            # NO tocar columna G(7) - tiene datos del template
+            # NO tocar columna G(7) - tiene datos fijos del template
             for col in range(8, 27):  # Columnas H en adelante (planillas adicionales)
                 ws1.cell(row=r, column=col).value = None
 
-        # Hoja Academ: limpiar columnas E(5) en adelante (no tiene datos fijos)
-        for r in range(1, 229):
+        # Hoja Academ: limpiar columnas E(5) en adelante, solo filas de datos (1-227)
+        # NO tocar fila 228 que tiene fórmulas del template
+        for r in range(1, 228):
             for col in range(5, 27):
                 ws2.cell(row=r, column=col).value = None
 
@@ -1160,11 +1163,19 @@ def exportar_excel(sistema: str):
 
             # =====================================================
             # --- Fórmula de suma total de delegados ganados ---
-            # Se coloca al final de la columna de delegados de cada planilla
+            # La fila 229 del template ya tiene fórmulas:
+            #   D229=SUM(D3:D228), G229=SUM(F2:F228), H229=SUM(G2:G228)
+            # Para la primera planilla (idx=0), G229 ya suma F (delegados ganados)
+            # Para planillas adicionales, generamos la fórmula en su columna
             # =====================================================
 
-            # Hoja Admon: suma en fila 229 (después de la última dependencia fila 228)
-            ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
+            if idx == 0:
+                # La primera planilla: la fórmula ya existe en G229 del template
+                # que suma =SUM(F2:F228), no necesitamos duplicarla
+                pass
+            else:
+                # Planillas adicionales: crear fórmula de suma en la fila 229
+                ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
 
             # Hoja Academ: suma en fila 228 (después de la última dependencia fila 227)
             ws2.cell(row=228, column=s2_col_delegados).value = f"=SUM({s2_col_delegados_letra}2:{s2_col_delegados_letra}227)"

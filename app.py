@@ -1062,12 +1062,16 @@ def exportar_excel(sistema: str):
             nombre_val = ws2.cell(row=r, column=3).value  # Columna C = Dependencia
             sheet2_rows.append((r, clave_val, nombre_val))
 
-        # Limpiar las columnas dinámicas (E en adelante) para escribir datos frescos
-        # Hoja Admon: limpiar filas 1 a 229 (incluye encabezados y fila de suma)
+        # Limpiar columnas dinámicas SIN tocar la columna G(7) de Admon
+        # que contiene datos fijos de "Delegados totales por definir"
         for r in range(1, 230):
-            for col in range(5, 27):
+            ws1.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
+            ws1.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
+            # NO tocar columna G(7) - tiene datos del template
+            for col in range(8, 27):  # Columnas H en adelante (planillas adicionales)
                 ws1.cell(row=r, column=col).value = None
-        # Hoja Academ: limpiar filas 1 a 228
+
+        # Hoja Academ: limpiar columnas E(5) en adelante (no tiene datos fijos)
         for r in range(1, 229):
             for col in range(5, 27):
                 ws2.cell(row=r, column=col).value = None
@@ -1077,52 +1081,51 @@ def exportar_excel(sistema: str):
             nombre_planilla = item.get("nombre", "")
             expresion = item.get("expresion", "")
 
-            # Calcular los índices de columna para esta planilla
-            # Cada planilla ocupa 3 columnas: Nombre, Delegados Ganados, Suma/Total
-            col_nombre_idx = 5 + 3 * idx       # Columna para el nombre de la planilla
-            col_delegados_idx = 6 + 3 * idx     # Columna para delegados ganados
-            col_suma_idx = 7 + 3 * idx           # Columna para la suma total
+            # =====================================================
+            # Columnas para Hoja Admon (2 columnas por planilla: nombre + delegados)
+            # La primera planilla usa E(5) y F(6). La columna G(7) es fija del template.
+            # Las planillas adicionales usan 2 columnas desde H(8) en adelante.
+            # =====================================================
+            if idx == 0:
+                s1_col_nombre = 5      # Columna E
+                s1_col_delegados = 6   # Columna F
+            else:
+                s1_col_nombre = 6 + 2 * idx      # idx=1 -> H(8), idx=2 -> J(10)
+                s1_col_delegados = 7 + 2 * idx   # idx=1 -> I(9), idx=2 -> K(11)
 
-            col_delegados_letra = get_column_letter(col_delegados_idx)
-            col_suma_letra = get_column_letter(col_suma_idx)
+            s1_col_delegados_letra = get_column_letter(s1_col_delegados)
 
-            # Texto de identificación de la planilla (nombre + expresión política si existe)
+            # =====================================================
+            # Columnas para Hoja Academ (3 columnas por planilla: nombre + expresion + delegados)
+            # =====================================================
+            s2_col_nombre = 5 + 3 * idx       # E(5), H(8), K(11)...
+            s2_col_expresion = 6 + 3 * idx    # F(6), I(9), L(12)...
+            s2_col_delegados = 7 + 3 * idx    # G(7), J(10), M(13)...
+
+            s2_col_delegados_letra = get_column_letter(s2_col_delegados)
+
+            # Texto de identificación de la planilla (nombre + expresión si existe)
             texto_planilla = f"{nombre_planilla} ({expresion})" if expresion else nombre_planilla
 
             # =====================================================
-            # --- Hoja 1: Admon (Dependencias Administrativas) ---
+            # --- Encabezados Hoja Admon (fila 1) ---
             # =====================================================
-
-            # Encabezados en fila 1
-            ws1.cell(row=1, column=col_nombre_idx).value = "Nombre de la Planilla"
-            ws1.cell(row=1, column=col_delegados_idx).value = "Delgados GANADOS"
-            ws1.cell(row=1, column=col_suma_idx).value = "Delegados totales por definir"
-
-            # Escribir el nombre de la planilla en la columna E de cada fila de datos
-            # y dejar la columna F (delegados) vacía inicialmente (se llenará con datos reales)
-            for r in range(2, 229):
-                ws1.cell(row=r, column=col_nombre_idx).value = texto_planilla
+            ws1.cell(row=1, column=s1_col_nombre).value = "Nombre de la Planilla"
+            ws1.cell(row=1, column=s1_col_delegados).value = "Delgados GANADOS"
+            # La columna G(7) ya tiene su header "Delegados totales por definir" del template
 
             # =====================================================
-            # --- Hoja 2: Academ (Dependencias Académicas) ---
+            # --- Encabezados Hoja Academ (fila 1) ---
             # =====================================================
-
-            # Encabezados en fila 1
-            ws2.cell(row=1, column=col_nombre_idx).value = "Nombre de la Planilla"
-            ws2.cell(row=1, column=col_delegados_idx).value = "Corrientes que la integran"
-            ws2.cell(row=1, column=col_suma_idx).value = f"Delgados que corresponden al {nombre_planilla}"
-
-            # Escribir nombre y expresión en las columnas E y F de cada fila
-            for r in range(2, 228):
-                ws2.cell(row=r, column=col_nombre_idx).value = nombre_planilla
-                ws2.cell(row=r, column=col_delegados_idx).value = expresion
+            ws2.cell(row=1, column=s2_col_nombre).value = "Nombre de la Planilla"
+            ws2.cell(row=1, column=s2_col_expresion).value = "Corrientes que la integran"
+            ws2.cell(row=1, column=s2_col_delegados).value = f"Delgados que corresponden al {nombre_planilla}"
 
             # =====================================================
             # --- Cruzar datos de actas con dependencias del Excel ---
+            # SOLO rellenar nombre de planilla y delegados donde haya acta
+            # Las filas sin acta quedan vacías (no se rellena todo)
             # =====================================================
-            # Para cada acta, buscar cuántos delegados ganó esta planilla
-            # y colocar ese valor en la fila correspondiente del Excel
-
             for r_acta in resultados:
                 numero_db = str(r_acta.get("numero", "")).strip()
                 nombre_db = str(r_acta.get("nombre", "")).strip()
@@ -1140,27 +1143,31 @@ def exportar_excel(sistema: str):
                 if not planilla_encontrada:
                     continue
 
-                # Buscar la fila correspondiente en la Hoja Admon por clave o nombre
+                # Hoja Admon: buscar fila y escribir nombre + delegados
                 for r_excel, clave_ex, nombre_ex in sheet1_rows:
                     if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws1.cell(row=r_excel, column=col_delegados_idx).value = delegados_ganados
+                        ws1.cell(row=r_excel, column=s1_col_nombre).value = texto_planilla
+                        ws1.cell(row=r_excel, column=s1_col_delegados).value = delegados_ganados
                         break
 
-                # Buscar la fila correspondiente en la Hoja Academ por clave o nombre
+                # Hoja Academ: buscar fila y escribir nombre + expresion + delegados
                 for r_excel, clave_ex, nombre_ex in sheet2_rows:
                     if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws2.cell(row=r_excel, column=col_suma_idx).value = delegados_ganados
+                        ws2.cell(row=r_excel, column=s2_col_nombre).value = nombre_planilla
+                        ws2.cell(row=r_excel, column=s2_col_expresion).value = expresion
+                        ws2.cell(row=r_excel, column=s2_col_delegados).value = delegados_ganados
                         break
 
             # =====================================================
-            # --- Fórmulas de suma al final de cada hoja ---
+            # --- Fórmula de suma total de delegados ganados ---
+            # Se coloca al final de la columna de delegados de cada planilla
             # =====================================================
 
-            # Hoja Admon: fórmula de suma de delegados ganados en la fila 229
-            ws1.cell(row=229, column=col_delegados_idx).value = f"=SUM({col_delegados_letra}2:{col_delegados_letra}228)"
+            # Hoja Admon: suma en fila 229 (después de la última dependencia fila 228)
+            ws1.cell(row=229, column=s1_col_delegados).value = f"=SUM({s1_col_delegados_letra}2:{s1_col_delegados_letra}228)"
 
-            # Hoja Academ: fórmula de suma de delegados en la fila 228
-            ws2.cell(row=228, column=col_suma_idx).value = f"=SUM({col_suma_letra}2:{col_suma_letra}227)"
+            # Hoja Academ: suma en fila 228 (después de la última dependencia fila 227)
+            ws2.cell(row=228, column=s2_col_delegados).value = f"=SUM({s2_col_delegados_letra}2:{s2_col_delegados_letra}227)"
 
         # Guardar el archivo Excel en memoria y enviarlo como descarga
         output = BytesIO()

@@ -22,10 +22,15 @@
         <div class="badge">{{ resultados | length }} acta{% if resultados | length != 1 %}s{% endif %}</div>
     </header>
 
-    <div class="info-section nav-header-actions">
-        <a href="/cgr" class="back-btn">
-            ← Regresar al Dashboard
-        </a>
+    <div class="info-section nav-header-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <a href="/cgr" class="back-btn">
+                ← Regresar al Dashboard
+            </a>
+            <button type="button" id="btn-open-export-modal" class="action-btn edit-btn" style="padding: 10px 18px; font-weight: 600; background-color: #16a34a; border-color: #16a34a; display: inline-flex; align-items: center; gap: 6px;">
+                📊 Exportar a Excel Base
+            </button>
+        </div>
         <div class="info-box" style="margin: 0; padding: 10px 15px;">
             Reportes consolidados en tiempo real.
         </div>
@@ -488,8 +493,160 @@
 
                 refreshUI();
             });
+
+            // --- Lógica del Modal de Exportación a Excel ---
+            const exportModal = document.getElementById("export-excel-modal");
+            const btnOpenModal = document.getElementById("btn-open-export-modal");
+            const btnCloseModal = document.getElementById("btn-close-export-modal");
+            const btnCancelExcel = document.getElementById("btn-cancel-excel");
+            const btnConfirmExcel = document.getElementById("btn-confirm-excel-download");
+            const exportListContainer = document.getElementById("excel-export-list");
+            const btnSelectAll = document.getElementById("btn-excel-select-all");
+            const btnDeselectAll = document.getElementById("btn-excel-deselect-all");
+
+            btnOpenModal.addEventListener("click", () => {
+                exportListContainer.innerHTML = "";
+                if (planillasOriginales.length === 0) {
+                    exportListContainer.textContent = "No hay planillas disponibles para exportar.";
+                    btnConfirmExcel.disabled = true;
+                } else {
+                    btnConfirmExcel.disabled = false;
+                    planillasOriginales.forEach(p => {
+                        const label = document.createElement("label");
+                        label.style.display = "inline-flex";
+                        label.style.alignItems = "center";
+                        label.style.gap = "8px";
+                        label.style.cursor = "pointer";
+                        label.style.padding = "4px 0";
+                        label.style.color = "var(--text)";
+                        label.style.fontSize = "14px";
+                        
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.value = p;
+                        cb.className = "excel-export-cb";
+                        cb.checked = true;
+                        
+                        const exp = expresionPlanilla[p] || "";
+                        const displayText = exp ? `${p} (${exp})` : p;
+                        
+                        label.append(cb, displayText);
+                        exportListContainer.appendChild(label);
+                    });
+                }
+                exportModal.style.display = "flex";
+            });
+
+            const closeModal = () => {
+                exportModal.style.display = "none";
+            };
+
+            btnCloseModal.addEventListener("click", closeModal);
+            btnCancelExcel.addEventListener("click", closeModal);
+            
+            exportModal.addEventListener("click", (e) => {
+                if (e.target === exportModal) {
+                    closeModal();
+                }
+            });
+
+            btnSelectAll.addEventListener("click", () => {
+                document.querySelectorAll(".excel-export-cb").forEach(cb => cb.checked = true);
+            });
+
+            btnDeselectAll.addEventListener("click", () => {
+                document.querySelectorAll(".excel-export-cb").forEach(cb => cb.checked = false);
+            });
+
+            btnConfirmExcel.addEventListener("click", async () => {
+                const checkedCbs = Array.from(document.querySelectorAll(".excel-export-cb:checked"));
+                if (checkedCbs.length === 0) {
+                    alert("Por favor selecciona al menos 1 planilla para exportar.");
+                    return;
+                }
+
+                btnConfirmExcel.disabled = true;
+                btnConfirmExcel.textContent = "Generando...";
+
+                const planillasToExport = checkedCbs.map(cb => {
+                    const name = cb.value;
+                    return {
+                        nombre: name,
+                        expresion: expresionPlanilla[name] || ""
+                    };
+                });
+
+                try {
+                    const pathParts = window.location.pathname.split('/');
+                    const sistema = pathParts[1] || 'cgr';
+                    
+                    const response = await fetch(`/api/${sistema}/exportar-excel`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ planillas: planillasToExport })
+                    });
+
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(errData.mensaje || "Error al descargar el archivo.");
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    
+                    const disposition = response.headers.get('content-disposition');
+                    let filename = `Resultado_${sistema.toUpperCase()}.xlsx`;
+                    if (disposition && disposition.indexOf('attachment') !== -1) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(disposition);
+                        if (matches != null && matches[1]) { 
+                            filename = matches[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    closeModal();
+                } catch (error) {
+                    alert("Ocurrió un error al exportar: " + error.message);
+                } finally {
+                    btnConfirmExcel.disabled = false;
+                    btnConfirmExcel.textContent = "Descargar Excel";
+                }
+            });
         })();
     </script>
+    <!-- Modal de Exportación a Excel -->
+    <div id="export-excel-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--bg-card, #fff); padding: 25px; border-radius: var(--radius, 12px); width: 90%; max-width: 500px; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2); box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--text); font-size: 18px; font-weight: 700;">Exportar a Excel Base</h3>
+                <button type="button" id="btn-close-export-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted, #64748b); line-height: 1;">&times;</button>
+            </div>
+            <p style="color: var(--text-muted, #64748b); font-size: 13px; margin-bottom: 15px; line-height: 1.4;">
+                Selecciona las planillas que deseas incluir en las columnas del archivo Excel base. Se conservarán los datos originales y se sumarán los delegados ganados en cada celda respectiva.
+            </p>
+            <div style="margin-bottom: 15px; display: flex; gap: 8px;">
+                <button type="button" id="btn-excel-select-all" class="action-btn" style="padding: 6px 12px; font-size: 12px; background: #e2e8f0; color: #334155; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Seleccionar Todas</button>
+                <button type="button" id="btn-excel-deselect-all" class="action-btn" style="padding: 6px 12px; font-size: 12px; background: #e2e8f0; color: #334155; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Deseleccionar Todas</button>
+            </div>
+            <div id="excel-export-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg, #f8fafc); border-radius: 8px; border: 1px solid var(--border);">
+                <!-- Checkboxes de planillas cargados por JS -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <button type="button" id="btn-cancel-excel" class="action-btn delete-btn" style="padding: 10px 18px; font-weight: 600; border-radius: 8px;">Cancelar</button>
+                <button type="button" id="btn-confirm-excel-download" class="action-btn edit-btn" style="padding: 10px 18px; font-weight: 600; border-radius: 8px; background-color: #16a34a; border-color: #16a34a;">Descargar Excel</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="pie-de-pagina">
         <p><span class="tech-icon">&lt;/&gt;</span> Technology for Sedas_A</p>
     </footer>

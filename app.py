@@ -976,6 +976,155 @@ def api_estadisticas(sistema: str):
     return jsonify({"status": "ok", "data": stats})
 
 
+def _normalizar_para_cruce(texto: str | None) -> str:
+    if not texto:
+        return ""
+    import unicodedata
+    import re
+    txt = unicodedata.normalize("NFKD", str(texto))
+    txt = "".join(ch for ch in txt if not unicodedata.combining(ch))
+    txt = re.sub(r"\s+", " ", txt).strip().lower()
+    txt = txt.replace('"', '').replace("'", "").replace("“", "").replace("”", "")
+    return txt
+
+
+def _es_coincidencia(clave_excel: str, nombre_excel: str, numero_db: str, nombre_db: str) -> bool:
+    def clean_num(n):
+        if not n:
+            return ""
+        import re
+        m = re.findall(r"\d+", str(n))
+        return str(int(m[0])) if m else ""
+        
+    num_ex = clean_num(clave_excel)
+    num_db = clean_num(numero_db)
+    
+    if num_ex and num_db and num_ex == num_db:
+        return True
+        
+    norm_ex = _normalizar_para_cruce(nombre_excel)
+    norm_db = _normalizar_para_cruce(nombre_db)
+    
+    if norm_ex and norm_db and norm_ex == norm_db:
+        return True
+        
+    return False
+
+
+@app.route("/api/<any(cgr, cgo):sistema>/exportar-excel", methods=["POST", "OPTIONS"])
+def exportar_excel(sistema: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+        
+    sistema_upper = sistema.upper()
+    payload = request.get_json(silent=True) or {}
+    items_a_exportar = payload.get("planillas", [])
+    
+    if not items_a_exportar:
+        return jsonify({"status": "error", "mensaje": "No se seleccionaron planillas para exportar"}), 400
+        
+    resultados = _armar_resultados_dashboard(sistema_upper)
+    
+    excel_path = os.path.join(app.root_path, "EXCEL", "Resultado-Planillas-26.xlsx")
+    if not os.path.exists(excel_path):
+        return jsonify({"status": "error", "mensaje": "No se encontro el archivo excel base"}), 404
+        
+    try:
+        from openpyxl import load_workbook
+        from openpyxl.utils import get_column_letter
+        from io import BytesIO
+        
+        wb = load_workbook(excel_path)
+        ws1 = wb["Admon"]
+        ws2 = wb["Academ"]
+        
+        sheet1_rows = []
+        for r in range(2, 229):
+            clave_val = ws1.cell(row=r, column=2).value
+            nombre_val = ws1.cell(row=r, column=3).value
+            sheet1_rows.append((r, clave_val, nombre_val))
+            
+        sheet2_rows = []
+        for r in range(2, 228):
+            clave_val = ws2.cell(row=r, column=2).value
+            nombre_val = ws2.cell(row=r, column=3).value
+            sheet2_rows.append((r, clave_val, nombre_val))
+            
+        for r in range(1, 229):
+            for col in range(5, 27):
+                ws1.cell(row=r, column=col).value = None
+        for r in range(1, 228):
+            for col in range(5, 27):
+                ws2.cell(row=r, column=col).value = None
+                
+        for idx, item in enumerate(items_a_exportar):
+            k = idx + 1
+            nombre = item.get("nombre", "")
+            expresion = item.get("expresion", "")
+            
+            col_name_idx = 5 + 3 * (idx)
+            col_delegados_idx = 6 + 3 * (idx)
+            col_sum_idx = 7 + 3 * (idx)
+            
+            col_name_letter = get_column_letter(col_name_idx)
+            col_delegados_letter = get_column_letter(col_delegados_idx)
+            col_sum_letter = get_column_letter(col_sum_idx)
+            
+            ws1.cell(row=1, column=col_name_idx).value = f"{nombre} ({expresion})" if expresion else nombre
+            for r in range(2, 229):
+                ws1.cell(row=r, column=col_delegados_idx).value = 0
+            ws1.cell(row=229, column=col_sum_idx).value = f"=SUM({col_delegados_letter}2:{col_delegados_letter}228)"
+            
+            ws2.cell(row=1, column=col_name_idx).value = nombre
+            ws2.cell(row=1, column=col_delegados_idx).value = expresion
+            ws2.cell(row=1, column=col_sum_idx).value = f"Delgados que corresponden al {nombre}"
+            for r in range(2, 228):
+                ws2.cell(row=r, column=col_sum_idx).value = 0
+            ws2.cell(row=228, column=col_sum_idx).value = f"=SUM({col_sum_letter}2:{col_sum_letter}227)"
+            
+            for r_acta in resultados:
+                numero_db = str(r_acta.get("numero", "")).strip()
+                nombre_db = str(r_acta.get("nombre", "")).strip()
+                
+                delegados_ganados = 0
+                for p in r_acta.get("planillas", []):
+                    if p.get("planilla") == nombre:
+                        delegados_ganados = _to_int(p.get("delegados_ganados"), 0)
+                        break
+                        
+                for r_excel, clave_ex, nombre_ex in sheet1_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws1.cell(row=r_excel, column=col_delegados_idx).value = delegados_ganados
+                        break
+                        
+                for r_excel, clave_ex, nombre_ex in sheet2_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws2.cell(row=r_excel, column=col_sum_idx).value = delegados_ganados
+                        break
+                        
+        ws1.cell(row=229, column=8).value = "=SUM(G2:G228)"
+        
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        from datetime import datetime
+        fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_descarga = f"Resultado_{sistema_upper}_{fecha_str}.xlsx"
+        
+        return Response(
+            output.read(),
+            headers={
+                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Content-Disposition": f'attachment; filename="{nombre_descarga}"',
+                "Cache-Control": "no-store",
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "mensaje": f"Error al generar excel: {str(e)}"}), 500
+
+
+
 @app.route("/api/<any(cgr, cgo):sistema>/actas/<int:acta_id>/pdf", methods=["GET"])
 def descargar_pdf_acta(sistema: str, acta_id: int):
     sistema_upper = sistema.upper()

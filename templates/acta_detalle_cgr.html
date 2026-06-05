@@ -57,6 +57,7 @@
                 <summary class="gear-btn" title="Acciones">⚙</summary>
                 <div class="card-actions-popover">
                     <button class="action-btn pdf-btn" id="btn-pdf-acta" type="button">Descargar PDF</button>
+                    <button class="action-btn edit-btn" id="btn-edit-acta" type="button">Editar</button>
                     <button class="action-btn delete-btn" id="btn-delete-acta" type="button">Eliminar</button>
                 </div>
             </details>
@@ -204,6 +205,7 @@
   const card = document.querySelector(".card");
   const deleteBtn = document.getElementById("btn-delete-acta");
   const pdfBtn = document.getElementById("btn-pdf-acta");
+  const editBtn = document.getElementById("btn-edit-acta");
 
   const authModal = document.getElementById("auth-modal");
   const authUsuario = document.getElementById("auth-usuario");
@@ -334,6 +336,15 @@
       const actaId = Number(card.getAttribute("data-id") || 0);
       if (!actaId) return;
       window.open(`/api/cgr/actas/${actaId}/pdf`, "_blank");
+    });
+  }
+
+  if (editBtn) {
+    editBtn.addEventListener("click", () => {
+      if (!card) return;
+      const actaId = Number(card.getAttribute("data-id") || 0);
+      if (!actaId) return;
+      window.location.href = `/cgr/acta/${actaId}/editar`;
     });
   }
 

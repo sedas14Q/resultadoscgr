@@ -186,6 +186,18 @@
     window.open(`/api/cgr/actas/${actaId}/pdf`, "_blank");
   }
 
+  async function editarActa(card) {
+    /*
+      Redirecciona a la página de edición de acta.
+    */
+    const actaId = Number(card.getAttribute("data-id") || 0);
+    if (!actaId) {
+      alert("No se pudo identificar el acta para editar.");
+      return;
+    }
+    window.location.href = `/cgr/acta/${actaId}/editar`;
+  }
+
   function activarAccionesActa() {
     /*
       Registra los manejadores de eventos (descargar PDF, eliminar)

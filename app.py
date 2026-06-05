@@ -908,6 +908,43 @@ def detalle_acta(acta_id: int):
     return render_template("acta_detalle.html", r=resultado)
 
 
+@app.route("/cgr/acta/<int:acta_id>/editar", methods=["GET"])
+def editar_acta_cgr_view(acta_id: int):
+    """
+    Pagina de edicion de un acta para CGR XXII.
+    """
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGR":
+        return Response("Acta no encontrada en CGR", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_editar.html", r=resultado, sistema="CGR")
+
+
+@app.route("/cgo/acta/<int:acta_id>/editar", methods=["GET"])
+def editar_acta_cgo_view(acta_id: int):
+    """
+    Pagina de edicion de un acta para CGO XLIII.
+    """
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != "CGO":
+        return Response("Acta no encontrada en CGO", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_editar.html", r=resultado, sistema="CGO")
+
+
+@app.route("/acta/<int:acta_id>/editar", methods=["GET"])
+def editar_acta_view(acta_id: int):
+    """
+    Ruta legacy de edicion de acta.
+    """
+    acta = db.obtener_por_id(acta_id)
+    if not acta:
+        return Response("Acta no encontrada", status=404, mimetype="text/plain")
+    resultado = _armar_resultado_desde_acta(acta)
+    return render_template("acta_editar.html", r=resultado, sistema=resultado.get("sistema", "CGR"))
+
+
+
 # ---------------- API ENDPOINTS (DYNAMICAL CGR / CGO) ----------------
 
 @app.route("/api/<any(cgr, cgo):sistema>/actas", methods=["GET"])
@@ -972,6 +1009,94 @@ def eliminar_acta_manual(sistema: str, acta_id: int):
     if not ok:
         return jsonify({"status": "error", "mensaje": "Error al eliminar"}), 500
     return jsonify({"status": "ok", "mensaje": "Acta eliminada"})
+
+
+@app.route("/api/<any(cgr, cgo):sistema>/actas/<int:acta_id>", methods=["PUT", "OPTIONS"])
+def editar_acta_manual(sistema: str, acta_id: int):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    if not _admin_autorizado(payload):
+        return jsonify({"status": "error", "mensaje": "No autorizado"}), 401
+    sistema_upper = sistema.upper()
+    acta = db.obtener_por_id(acta_id)
+    if not acta or acta.get("sistema") != sistema_upper:
+        return jsonify({"status": "error", "mensaje": "Acta no encontrada"}), 404
+
+    numero_raw = payload.get("numero")
+    nombre_raw = payload.get("nombre")
+    fecha = _safe_text(payload.get("fecha"))
+    if not fecha:
+        fecha = obtener_fecha_mexico()
+    capturista = _safe_text(payload.get("capturista"))
+
+    cross_ref = (sistema_upper == "CGR")
+    if cross_ref:
+        numero, nombre = normalizar_dependencia(numero_raw, nombre_raw)
+        numero = _safe_text(numero)
+        nombre = _safe_text(nombre)
+    else:
+        numero = _safe_text(numero_raw)
+        nombre = _safe_text(nombre_raw)
+
+    if not numero and not nombre:
+        return jsonify({"status": "error", "mensaje": "Debes capturar numero o nombre de dependencia"}), 400
+
+    if not numero or not nombre:
+        return jsonify({
+            "status": "error",
+            "mensaje": "No se pudo encontrar coincidencia entre numero y nombre de dependencia",
+        }), 400
+
+    candidatos_src = payload.get("planillas")
+    if not isinstance(candidatos_src, list):
+        candidatos_src = payload.get("candidatos")
+
+    resumen_src = payload.get("resumen")
+    if not isinstance(resumen_src, dict):
+        resumen_src = payload.get("resumen datos")
+
+    candidatos = normalizar_candidatos(candidatos_src)
+    resumen = normalizar_resumen(resumen_src)
+    error_validacion = validar_acta(candidatos, resumen)
+    if error_validacion:
+        return jsonify({"status": "error", "mensaje": error_validacion}), 400
+
+    total = resumen.get("votos_totales", 0)
+    if total <= 0:
+        total = sum(c["votos"] for c in candidatos)
+        resumen["votos_totales"] = total
+
+    if total > 0:
+        for c in candidatos:
+            if not c.get("porcentaje"):
+                c["porcentaje"] = round((c["votos"] / total) * 100, 2)
+
+    resumen, padron_ajustado = recalcular_padron(resumen)
+
+    ok = db.actualizar_acta(
+        acta_id=acta_id,
+        numero=numero,
+        nombre=nombre,
+        fecha=fecha,
+        candidatos=candidatos,
+        resumen=resumen
+    )
+    if not ok:
+        return jsonify({"status": "error", "mensaje": "Error al actualizar"}), 500
+
+    data = {
+        "id": acta_id,
+        "numero": numero,
+        "nombre": nombre,
+        "fecha": fecha,
+        "capturista": capturista,
+        "candidatos": candidatos,
+        "planillas": agrupar_planillas(candidatos, resumen.get("votos_totales", 0)),
+        "resumen": resumen,
+    }
+    return jsonify({"status": "ok", "mensaje": "Acta actualizada con exito", "data": data})
+
 
 
 # ---------------- DEPRECATED COMPATIBILITY ENDPOINTS ----------------

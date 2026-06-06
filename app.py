@@ -195,11 +195,13 @@ def validar_acta(candidatos: list, resumen: dict) -> str | None:
     Verifica que no haya votos ni delegados negativos y que las planillas contengan votos.
     """
     if not candidatos:
-        return "Debes capturar minimo 1 candidato completo."
+        return "Debes capturar minimo 1 planilla completa."
 
     for c in candidatos:
-        if c.get("planilla") == "Sin planilla" or c.get("candidato") == "Sin nombre":
-            return "Cada candidato debe tener planilla y nombre."
+        # EXCEPCIÓN: Ya no se requerirá validar el nombre del candidato ("candidato" puede ser "Sin nombre" o vacío),
+        # dado que el formulario actualizado no envía esta información. Esto evita romper la validación y la base de datos.
+        if c.get("planilla") == "Sin planilla":
+            return "Cada planilla debe tener nombre."
         if _to_int(c.get("votos"), 0) < 0:
             return "Los votos no pueden ser negativos."
         if _to_int(c.get("delegados_ganados"), 0) < 0:
@@ -396,7 +398,9 @@ def _armar_pdf_acta(acta: dict) -> bytes:
     base_sz = 9
 
     for i, pz in enumerate(planillas):
-        lista_cands = [str(n).strip() for n in (pz.get("candidatos", []) or []) if str(n).strip()]
+        # EXCEPCIÓN: Si los nombres de los candidatos son "Sin nombre" (valor por defecto cuando no se reciben),
+        # los omitimos en el PDF para que se muestre "N/D" de forma estética.
+        lista_cands = [str(n).strip() for n in (pz.get("candidatos", []) or []) if str(n).strip() and str(n).strip() != "Sin nombre"]
         if not lista_cands:
             lista_cands = ["N/D"]
 

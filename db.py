@@ -124,6 +124,17 @@ def inicializar() -> None:
                     )
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS custom_planillas (
+                        id SERIAL PRIMARY KEY,
+                        sistema TEXT NOT NULL,
+                        planilla TEXT NOT NULL,
+                        expresion_politica TEXT,
+                        UNIQUE(sistema, planilla)
+                    )
+                    """
+                )
             conn.commit()
         else:
             conn.execute(
@@ -138,6 +149,17 @@ def inicializar() -> None:
                     fuente TEXT,
                     capturista TEXT,
                     fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS custom_planillas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sistema TEXT NOT NULL,
+                    planilla TEXT NOT NULL,
+                    expresion_politica TEXT,
+                    UNIQUE(sistema, planilla)
                 )
                 """
             )
@@ -406,6 +428,92 @@ def eliminar_acta(acta_id: int) -> bool:
         cur = conn.execute("DELETE FROM actas WHERE id = ?", (int(acta_id),))
         conn.commit()
         return cur.rowcount > 0
+
+
+def obtener_custom_planillas(sistema: str) -> list[dict]:
+    """
+    Recupera todas las planillas personalizadas registradas para el sistema especificado (CGR o CGO).
+    """
+    try:
+        inicializar()
+        with _get_conn() as conn:
+            if IS_POSTGRES:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute(
+                        "SELECT planilla, expresion_politica FROM custom_planillas WHERE sistema = %s ORDER BY planilla",
+                        (sistema.upper(),)
+                    )
+                    return _fetchall_dict(cur)
+            else:
+                cur = conn.execute(
+                    "SELECT planilla, expresion_politica FROM custom_planillas WHERE sistema = ? ORDER BY planilla",
+                    (sistema.upper(),)
+                )
+                return _fetchall_dict(cur)
+    except Exception:
+        return []
+
+
+def guardar_custom_planilla(sistema: str, planilla: str, expresion_politica: str) -> bool:
+    """
+    Inserta o reemplaza una planilla personalizada para el sistema especificado.
+    """
+    try:
+        inicializar()
+        with _get_conn() as conn:
+            if IS_POSTGRES:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO custom_planillas (sistema, planilla, expresion_politica)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (sistema, planilla) DO UPDATE
+                        SET expresion_politica = EXCLUDED.expresion_politica
+                        """,
+                        (sistema.upper(), planilla.strip(), expresion_politica.strip())
+                    )
+                conn.commit()
+                return True
+            else:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO custom_planillas (sistema, planilla, expresion_politica)
+                    VALUES (?, ?, ?)
+                    """,
+                    (sistema.upper(), planilla.strip(), expresion_politica.strip())
+                )
+                conn.commit()
+                return True
+    except Exception:
+        return False
+
+
+def eliminar_custom_planilla(sistema: str, planilla: str) -> bool:
+    """
+    Elimina una planilla personalizada para el sistema especificado.
+    """
+    try:
+        inicializar()
+        with _get_conn() as conn:
+            if IS_POSTGRES:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM custom_planillas WHERE sistema = %s AND planilla = %s",
+                        (sistema.upper(), planilla.strip())
+                    )
+                    deleted = cur.rowcount > 0
+                conn.commit()
+                return deleted
+            else:
+                cur = conn.execute(
+                    "DELETE FROM custom_planillas WHERE sistema = ? AND planilla = ?",
+                    (sistema.upper(), planilla.strip())
+                )
+                conn.commit()
+                return cur.rowcount > 0
+    except Exception:
+        return False
+
 
 
 # Inicialización de la base de datos al importar el módulo

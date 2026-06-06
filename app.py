@@ -972,6 +972,50 @@ def estado_actas(sistema: str):
     return jsonify({"status": "ok", "data": db.obtener_estado(sistema_upper)})
 
 
+@app.route("/api/<any(cgr, cgo):sistema>/planillas", methods=["GET"])
+def obtener_planillas(sistema: str):
+    sistema_upper = sistema.upper()
+    return jsonify({"status": "ok", "data": db.obtener_custom_planillas(sistema_upper)})
+
+
+@app.route("/api/<any(cgr, cgo):sistema>/planillas", methods=["POST", "OPTIONS"])
+def registrar_planilla(sistema: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    data = request.get_json() or {}
+    planilla = data.get("planilla")
+    expresion = data.get("expresion_politica") or ""
+    
+    if not planilla:
+        return jsonify({"status": "error", "message": "El nombre de la planilla es requerido."}), 400
+        
+    sistema_upper = sistema.upper()
+    exito = db.guardar_custom_planilla(sistema_upper, planilla, expresion)
+    if exito:
+        return jsonify({"status": "ok", "message": "Planilla registrada exitosamente."})
+    return jsonify({"status": "error", "message": "Error al guardar la planilla en la base de datos."}), 500
+
+
+@app.route("/api/<any(cgr, cgo):sistema>/planillas", methods=["DELETE", "OPTIONS"])
+def eliminar_planilla(sistema: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    if not _admin_autorizado(payload):
+        return jsonify({"status": "error", "message": "Credenciales incorrectas u operación no autorizada."}), 401
+    
+    planilla = payload.get("planilla")
+    if not planilla:
+        return jsonify({"status": "error", "message": "El nombre de la planilla es requerido para eliminar."}), 400
+        
+    sistema_upper = sistema.upper()
+    exito = db.eliminar_custom_planilla(sistema_upper, planilla)
+    if exito:
+        return jsonify({"status": "ok", "message": "Planilla eliminada exitosamente."})
+    return jsonify({"status": "error", "message": "No se pudo eliminar la planilla o la planilla no existe."}), 400
+
+
+
 @app.route("/api/<any(cgr, cgo):sistema>/estadisticas", methods=["GET"])
 def api_estadisticas(sistema: str):
     sistema_upper = sistema.upper()

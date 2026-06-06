@@ -501,16 +501,15 @@ def eliminar_custom_planilla(sistema: str, planilla: str) -> bool:
                         "DELETE FROM custom_planillas WHERE sistema = %s AND planilla = %s",
                         (sistema.upper(), planilla.strip())
                     )
-                    deleted = cur.rowcount > 0
                 conn.commit()
-                return deleted
+                return True
             else:
-                cur = conn.execute(
+                conn.execute(
                     "DELETE FROM custom_planillas WHERE sistema = ? AND planilla = ?",
                     (sistema.upper(), planilla.strip())
                 )
                 conn.commit()
-                return cur.rowcount > 0
+                return True
     except Exception:
         return False
 

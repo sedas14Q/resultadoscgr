@@ -36,7 +36,7 @@ En la sección **Environment** de tu Web Service, añade:
 
 ```bash
 # REQUERIDA - Conexión a PostgreSQL
-DATABASE_URL=postgresql://usuario:password@hostname:5432/dbname
+DATABASE_URL=postgresql://resultados_db_xncl_user:ifbrIRGvdGNGWONoIIvlhdfefhfJTqaz@dpg-d8mu3uvlk1mc7394rfbg-a/resultados_db_xncl
 
 # Credenciales de administrador
 ADMIN_USER=admin

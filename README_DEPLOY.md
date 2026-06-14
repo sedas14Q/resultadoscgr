@@ -1,4 +1,4 @@
-﻿# backend-flask
+# backend-flask
 
 Carpeta lista para desplegar en Render, Railway o Fly.io.
 
@@ -7,7 +7,7 @@ Carpeta lista para desplegar en Render, Railway o Fly.io.
 - `ADMIN_PASSWORD_HASH=<hash generado para 1548>`
 - `CORS_ORIGIN=https://tu-frontend.com`
 - `FLASK_DEBUG=0`
-- `DATABASE_URL=postgresql://usuario:password@host:puerto/dbname`
+- `DATABASE_URL=postgresql://resultados_db_xncl_user:ifbrIRGvdGNGWONoIIvlhdfefhfJTqaz@dpg-d8mu3uvlk1mc7394rfbg-a/resultados_db_xncl`
 
 ## Como generar hash para la contrasena 1548
 Ejecuta una vez en local:

@@ -1059,6 +1059,36 @@ def _es_coincidencia(clave_excel: str, nombre_excel: str, numero_db: str, nombre
     return False
 
 
+def _es_acta_academica(r_acta: dict) -> bool:
+    """
+    Determina si un acta corresponde a la sección académica.
+    Se identifica por:
+      - El nombre de la dependencia contiene '_Academico'
+      - Los candidatos contienen 'Delegado_Academico'
+    Si ninguna señal lo indica, se asume administrativa.
+    """
+    nombre = str(r_acta.get("nombre", "")).strip().lower()
+    if "_academico" in nombre:
+        return True
+
+    for p in r_acta.get("planillas", []):
+        for cand in p.get("candidatos", []):
+            if "delegado_academico" in str(cand).lower():
+                return True
+
+    return False
+
+
+def _limpiar_nombre_para_cruce(nombre: str) -> str:
+    """
+    Elimina los sufijos _Academico / _Administrativo del nombre de la
+    dependencia para poder hacer el cruce con el Excel donde los nombres
+    no llevan estos sufijos.
+    """
+    import re
+    return re.sub(r'_Acad[eé]mico$|_Administrativos?$', '', nombre, flags=re.IGNORECASE).strip()
+
+
 @app.route("/api/<any(cgr, cgo):sistema>/exportar-excel", methods=["POST", "OPTIONS"])
 def exportar_excel(sistema: str):
     """
@@ -1153,7 +1183,9 @@ def exportar_excel(sistema: str):
         # =====================================================
         for r_acta in resultados:
             numero_db = str(r_acta.get("numero", "")).strip()
-            nombre_db = str(r_acta.get("nombre", "")).strip()
+            nombre_db_raw = str(r_acta.get("nombre", "")).strip()
+            # Limpiar sufijo _Academico / _Administrativo para el cruce con el Excel
+            nombre_db = _limpiar_nombre_para_cruce(nombre_db_raw)
 
             delegados_sum = 0
             planilla_encontrada = False
@@ -1187,20 +1219,24 @@ def exportar_excel(sistema: str):
             fila_exp = " / ".join(expresiones_unicas)
             fila_texto_admon = f"{fila_nombre} ({fila_exp})" if fila_exp else fila_nombre
 
-            # Hoja Admon: buscar fila y escribir nombre de la(s) planilla(s) reales en esta dependencia + suma delegados
-            for r_excel, clave_ex, nombre_ex in sheet1_rows:
-                if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                    ws1.cell(row=r_excel, column=5).value = fila_texto_admon
-                    ws1.cell(row=r_excel, column=6).value = delegados_sum
-                    break
+            # Clasificar acta: académica va solo a Academ, administrativa va solo a Admon
+            es_academica = _es_acta_academica(r_acta)
 
-            # Hoja Academ: buscar fila y escribir nombre de la(s) planilla(s) reales en esta dependencia + suma delegados
-            for r_excel, clave_ex, nombre_ex in sheet2_rows:
-                if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                    ws2.cell(row=r_excel, column=5).value = fila_nombre
-                    ws2.cell(row=r_excel, column=6).value = fila_exp
-                    ws2.cell(row=r_excel, column=7).value = delegados_sum
-                    break
+            if es_academica:
+                # Hoja Academ: buscar fila y escribir SOLO aquí para actas académicas
+                for r_excel, clave_ex, nombre_ex in sheet2_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws2.cell(row=r_excel, column=5).value = fila_nombre
+                        ws2.cell(row=r_excel, column=6).value = fila_exp
+                        ws2.cell(row=r_excel, column=7).value = delegados_sum
+                        break
+            else:
+                # Hoja Admon: buscar fila y escribir SOLO aquí para actas administrativas
+                for r_excel, clave_ex, nombre_ex in sheet1_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws1.cell(row=r_excel, column=5).value = fila_texto_admon
+                        ws1.cell(row=r_excel, column=6).value = delegados_sum
+                        break
 
         # =====================================================
         # --- Fórmula de suma total de delegados ganados ---

@@ -1145,10 +1145,10 @@ def exportar_excel(sistema: str):
             ws1.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
             ws1.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
 
-        # Hoja Academ: limpiar E(5), F(6) y G(7) (filas de datos 2-51)
+        # Hoja Academ: limpiar E(5) y F(6), sin tocar G(7) (filas de datos 2-51)
         for r in range(2, 52):
-            for col in range(5, 8):
-                ws2.cell(row=r, column=col).value = None
+            ws2.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
+            ws2.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
 
         # =====================================================
         # --- Generar nombres consolidados para el encabezado ---
@@ -1173,8 +1173,7 @@ def exportar_excel(sistema: str):
         # --- Encabezados Hoja Academ (fila 1) ---
         # =====================================================
         ws2.cell(row=1, column=5).value = "Nombre de la Planilla"
-        ws2.cell(row=1, column=6).value = "Corrientes que la integran"
-        ws2.cell(row=1, column=7).value = f"Delgados que corresponden al {nombre_consolidado}"
+        ws2.cell(row=1, column=6).value = "Delgados GANADOS"
 
         # =====================================================
         # --- Cruzar datos de actas con dependencias del Excel ---
@@ -1225,9 +1224,8 @@ def exportar_excel(sistema: str):
                 # Hoja Academ: buscar fila y escribir SOLO aquí para actas académicas
                 for r_excel, clave_ex, nombre_ex in sheet2_rows:
                     if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws2.cell(row=r_excel, column=5).value = fila_nombre
-                        ws2.cell(row=r_excel, column=6).value = fila_exp
-                        ws2.cell(row=r_excel, column=7).value = delegados_sum
+                        ws2.cell(row=r_excel, column=5).value = fila_texto_admon
+                        ws2.cell(row=r_excel, column=6).value = delegados_sum
                         break
             else:
                 # Hoja Admon: buscar fila y escribir SOLO aquí para actas administrativas
@@ -1243,8 +1241,8 @@ def exportar_excel(sistema: str):
         # Hoja Admon: suma de delegados ganados en fila 229 (Columna F)
         ws1.cell(row=229, column=6).value = "=SUM(F2:F228)"
 
-        # Hoja Academ: suma de delegados ganados en fila 52 (Columna G)
-        ws2.cell(row=52, column=7).value = "=SUM(G2:G51)"
+        # Hoja Academ: suma de delegados ganados en fila 52 (Columna F)
+        ws2.cell(row=52, column=6).value = "=SUM(F2:F51)"
 
         # Guardar el archivo Excel en memoria y enviarlo como descarga
         output = BytesIO()

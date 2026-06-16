@@ -1063,17 +1063,17 @@ def _es_acta_academica(r_acta: dict) -> bool:
     """
     Determina si un acta corresponde a la sección académica.
     Se identifica por:
-      - El nombre de la dependencia contiene '_Academico'
-      - Los candidatos contienen 'Delegado_Academico'
+      - El nombre de la dependencia contiene '_acad' (con o sin tilde)
+      - Los candidatos contienen 'delegado_acad' (con o sin tilde)
     Si ninguna señal lo indica, se asume administrativa.
     """
     nombre = str(r_acta.get("nombre", "")).strip().lower()
-    if "_academico" in nombre:
+    if "_acad" in nombre:
         return True
 
     for p in r_acta.get("planillas", []):
         for cand in p.get("candidatos", []):
-            if "delegado_academico" in str(cand).lower():
+            if "delegado_acad" in str(cand).lower():
                 return True
 
     return False
@@ -1081,12 +1081,11 @@ def _es_acta_academica(r_acta: dict) -> bool:
 
 def _limpiar_nombre_para_cruce(nombre: str) -> str:
     """
-    Elimina los sufijos _Academico / _Administrativo del nombre de la
-    dependencia para poder hacer el cruce con el Excel donde los nombres
-    no llevan estos sufijos.
+    Elimina los sufijos _Academico / _Administrativo (con o sin tilde, plural o singular)
+    del nombre de la dependencia para poder hacer el cruce con el Excel.
     """
     import re
-    return re.sub(r'_Acad[eé]mico$|_Administrativos?$', '', nombre, flags=re.IGNORECASE).strip()
+    return re.sub(r'_(Acad[eé]mico|Acad[eé]mica|Administrativos?)$', '', nombre, flags=re.IGNORECASE).strip()
 
 
 @app.route("/api/<any(cgr, cgo):sistema>/exportar-excel", methods=["POST", "OPTIONS"])
@@ -1133,21 +1132,21 @@ def exportar_excel(sistema: str):
             nombre_val = ws1.cell(row=r, column=3).value  # Columna C = Dependencia
             sheet1_rows.append((r, clave_val, nombre_val))
 
-        # Hoja Academ: filas 2-227 (226 dependencias)
+        # Hoja Academ: filas 2-51 (50 dependencias)
         sheet2_rows = []
-        for r in range(2, 228):
+        for r in range(2, 52):
             clave_val = ws2.cell(row=r, column=2).value   # Columna B = Clave
             nombre_val = ws2.cell(row=r, column=3).value  # Columna C = Dependencia
             sheet2_rows.append((r, clave_val, nombre_val))
 
         # Limpiar SOLAMENTE las columnas base del template
-        # Hoja Admon: limpiar E(5) y F(6), sin tocar G(7)
-        for r in range(1, 229):
+        # Hoja Admon: limpiar E(5) y F(6), sin tocar G(7) (filas de datos 2-228)
+        for r in range(2, 229):
             ws1.cell(row=r, column=5).value = None  # Columna E - Nombre planilla
             ws1.cell(row=r, column=6).value = None  # Columna F - Delegados ganados
 
-        # Hoja Academ: limpiar E(5), F(6) y G(7)
-        for r in range(1, 228):
+        # Hoja Academ: limpiar E(5), F(6) y G(7) (filas de datos 2-51)
+        for r in range(2, 52):
             for col in range(5, 8):
                 ws2.cell(row=r, column=col).value = None
 
@@ -1244,8 +1243,8 @@ def exportar_excel(sistema: str):
         # Hoja Admon: suma de delegados ganados en fila 229 (Columna F)
         ws1.cell(row=229, column=6).value = "=SUM(F2:F228)"
 
-        # Hoja Academ: suma de delegados ganados en fila 228 (Columna G)
-        ws2.cell(row=228, column=7).value = "=SUM(G2:G227)"
+        # Hoja Academ: suma de delegados ganados en fila 52 (Columna G)
+        ws2.cell(row=52, column=7).value = "=SUM(G2:G51)"
 
         # Guardar el archivo Excel en memoria y enviarlo como descarga
         output = BytesIO()

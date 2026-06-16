@@ -857,23 +857,39 @@ def dashboard_cgo():
 
 
 @app.route("/cgr/estadisticas")
-def estadisticas_cgr():
+@app.route("/cgr/estadisticas/<any(administrativos, academicos):area>")
+def estadisticas_cgr(area=None):
     """
     Pagina dedicada a las estadisticas generales del CGR XXII.
     """
     resultados = _armar_resultados_dashboard("CGR")
+    tipo_reporte = "general"
+    if area == "administrativos":
+        resultados = [r for r in resultados if not _es_acta_academica(r)]
+        tipo_reporte = "administrativo"
+    elif area == "academicos":
+        resultados = [r for r in resultados if _es_acta_academica(r)]
+        tipo_reporte = "academico"
     estadisticas = calcular_estadisticas_generales(resultados)
-    return render_template("estadisticas_cgr.html", resultados=resultados, estadisticas=estadisticas)
+    return render_template("estadisticas_cgr.html", resultados=resultados, estadisticas=estadisticas, tipo_reporte=tipo_reporte)
 
 
 @app.route("/cgo/estadisticas")
-def estadisticas_cgo():
+@app.route("/cgo/estadisticas/<any(administrativos, academicos):area>")
+def estadisticas_cgo(area=None):
     """
     Pagina dedicada a las estadisticas generales del CGO XLIII.
     """
     resultados = _armar_resultados_dashboard("CGO")
+    tipo_reporte = "general"
+    if area == "administrativos":
+        resultados = [r for r in resultados if not _es_acta_academica(r)]
+        tipo_reporte = "administrativo"
+    elif area == "academicos":
+        resultados = [r for r in resultados if _es_acta_academica(r)]
+        tipo_reporte = "academico"
     estadisticas = calcular_estadisticas_generales(resultados)
-    return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas)
+    return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas, tipo_reporte=tipo_reporte)
 
 
 @app.route("/cgr/acta/<int:acta_id>", methods=["GET"])

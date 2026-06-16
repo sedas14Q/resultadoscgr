@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Estadísticas Generales - CGO XLIII</title>
+    <title>
+        {% if tipo_reporte == 'administrativo' %}
+            Estadísticas Administrativas
+        {% elif tipo_reporte == 'academico' %}
+            Estadísticas Académicas
+        {% else %}
+            Estadísticas Generales
+        {% endif %} - CGO XLIII
+    </title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css" />
@@ -18,7 +26,15 @@
             </svg>
             <span>STUNAM</span>
         </div>
-        <h1>Estadísticas Generales CGO XLIII</h1>
+        <h1>
+            {% if tipo_reporte == 'administrativo' %}
+                Estadísticas Administrativas
+            {% elif tipo_reporte == 'academico' %}
+                Estadísticas Académicas
+            {% else %}
+                Estadísticas Generales
+            {% endif %} CGO XLIII
+        </h1>
         <div class="badge">{{ resultados | length }} acta{% if resultados | length != 1 %}s{% endif %}</div>
     </header>
 
@@ -30,6 +46,15 @@
             <button type="button" id="btn-open-export-modal" class="back-btn">
                 📊 Exportar a Excel Base
             </button>
+            <a href="/cgo/estadisticas" class="back-btn {% if not tipo_reporte or tipo_reporte == 'general' %}active{% endif %}">
+                Resultados Generales
+            </a>
+            <a href="/cgo/estadisticas/administrativos" class="back-btn {% if tipo_reporte == 'administrativo' %}active{% endif %}">
+                Resultados Administrativos
+            </a>
+            <a href="/cgo/estadisticas/academicos" class="back-btn {% if tipo_reporte == 'academico' %}active{% endif %}">
+                Resultados Académico
+            </a>
         </div>
         <div class="info-box" style="margin: 0; padding: 10px 15px;">
             Reportes consolidados en tiempo real.

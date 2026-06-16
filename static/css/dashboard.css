@@ -1478,6 +1478,17 @@ body.portal-body {
     transform: translateY(-1px);
 }
 
+.back-btn.active {
+    background: #000080;
+    color: #ffe100;
+    border-color: #000080;
+}
+
+.back-btn.active:hover {
+    background: #000066;
+    color: #ffe100;
+}
+
 .back-btn-cgo {
     background: #f59e0b;
     border: 1px solid #d97706;

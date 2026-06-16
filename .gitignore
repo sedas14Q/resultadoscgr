@@ -1,0 +1,9 @@
+actas.db
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+instance/
+.pytest_cache/
+.vscode/
+.idea/

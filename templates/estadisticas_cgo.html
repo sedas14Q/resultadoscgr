@@ -40,6 +40,9 @@
 
     <div class="info-section nav-header-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div class="info-box" style="margin: 0; padding: 10px 15px;">
+            Reportes consolidados en tiempo real.
+             </div>
             <a href="/cgo" class="back-btn">
                 ← Regresar al Dashboard
             </a>
@@ -49,6 +52,11 @@
             <a href="/cgo/estadisticas" class="back-btn {% if not tipo_reporte or tipo_reporte == 'general' %}active{% endif %}">
                 Resultados Generales
             </a>
+
+            <div class="info-box" style="margin: 0; padding: 10px 15px;">
+            Resultados especificos por Area.
+             </div>
+
             <a href="/cgo/estadisticas/administrativos" class="back-btn {% if tipo_reporte == 'administrativo' %}active{% endif %}">
                 Resultados Administrativos
             </a>
@@ -56,9 +64,7 @@
                 Resultados Académico
             </a>
         </div>
-        <div class="info-box" style="margin: 0; padding: 10px 15px;">
-            Reportes consolidados en tiempo real.
-        </div>
+       
     </div>
 
     <main class="grid" style="margin-top: 10px;">

@@ -1282,6 +1282,136 @@ def exportar_excel(sistema: str):
 
 
 
+@app.route("/api/cgo/exportar-excel-fsi", methods=["GET"])
+def exportar_excel_fsi():
+    """
+    Exporta unicamente la informacion del FRENTE SINDICAL INCLUYENTE (FSI)
+    utilizando la plantilla Estadisticas_CGOFinal.xlsx.
+    """
+    resultados = _armar_resultados_dashboard("CGO")
+    
+    excel_path = os.path.join(app.root_path, "excelSoloFSI", "Estadisticas_CGOFinal.xlsx")
+    if not os.path.exists(excel_path):
+        return jsonify({"status": "error", "mensaje": "No se encontro la plantilla Excel para FSI"}), 404
+
+    try:
+        from openpyxl import load_workbook
+        from io import BytesIO
+        
+        wb = load_workbook(excel_path)
+        ws1 = wb["Admon"]   # Hoja de dependencias administrativas
+        ws2 = wb["Academ"]  # Hoja de dependencias academicas
+
+        # Leer las claves y nombres de dependencia de cada hoja para el cruce
+        # Hoja Admon: filas 2-228
+        sheet1_rows = []
+        for r in range(2, 229):
+            clave_val = ws1.cell(row=r, column=2).value
+            nombre_val = ws1.cell(row=r, column=3).value
+            sheet1_rows.append((r, clave_val, nombre_val))
+
+        # Hoja Academ: filas 2-51
+        sheet2_rows = []
+        for r in range(2, 52):
+            clave_val = ws2.cell(row=r, column=2).value
+            nombre_val = ws2.cell(row=r, column=3).value
+            sheet2_rows.append((r, clave_val, nombre_val))
+
+        # Limpiar columnas E(5), F(6) y G(7)
+        # Admon (filas 2-228)
+        for r in range(2, 229):
+            ws1.cell(row=r, column=5).value = None
+            ws1.cell(row=r, column=6).value = None
+            ws1.cell(row=r, column=7).value = None
+
+        # Academ (filas 2-51)
+        for r in range(2, 52):
+            ws2.cell(row=r, column=5).value = None
+            ws2.cell(row=r, column=6).value = None
+            ws2.cell(row=r, column=7).value = None
+
+        # Headers de las columnas (fila 1)
+        ws1.cell(row=1, column=5).value = "Nombre de la Planilla"
+        ws1.cell(row=1, column=6).value = "Corrientes que la integran"
+        ws1.cell(row=1, column=7).value = "Delgados GANADOS"
+
+        ws2.cell(row=1, column=5).value = "Nombre de la Planilla"
+        ws2.cell(row=1, column=6).value = "Corrientes que la integran"
+        ws2.cell(row=1, column=7).value = "Delgados GANADOS"
+
+        # Cruzar datos solo para FRENTE SINDICAL INCLUYENTE (FSI)
+        for r_acta in resultados:
+            numero_db = str(r_acta.get("numero", "")).strip()
+            nombre_db_raw = str(r_acta.get("nombre", "")).strip()
+            nombre_db = _limpiar_nombre_para_cruce(nombre_db_raw)
+
+            # Buscar si el Frente Sindical Incluyente participo en esta acta
+            delegados_sum = 0
+            planilla_encontrada = False
+            nombre_planilla_real = "FRENTE SINDICAL INCLUYENTE"
+            corrientes_en_acta = []
+
+            for p in r_acta.get("planillas", []):
+                planilla_name = p.get("planilla", "")
+                norm_p = _normalizar_para_cruce(planilla_name)
+                
+                # Coincidir con FSI
+                if norm_p == "frente sindical incluyente" or norm_p == "fsi" or "frente sindical" in norm_p:
+                    delegados_sum += _to_int(p.get("delegados_ganados"), 0)
+                    planilla_encontrada = True
+                    nombre_planilla_real = planilla_name.strip()
+                    if p.get("expresion_politica"):
+                        corrientes_en_acta.append(p.get("expresion_politica").strip())
+
+            if not planilla_encontrada:
+                continue
+
+            fila_nombre = nombre_planilla_real
+            fila_exp = " / ".join(list(dict.fromkeys(corrientes_en_acta)))
+
+            es_academica = _es_acta_academica(r_acta)
+
+            if es_academica:
+                # Hoja Academ: buscar fila y escribir
+                for r_excel, clave_ex, nombre_ex in sheet2_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws2.cell(row=r_excel, column=5).value = fila_nombre
+                        ws2.cell(row=r_excel, column=6).value = fila_exp
+                        ws2.cell(row=r_excel, column=7).value = delegados_sum
+                        break
+            else:
+                # Hoja Admon: buscar fila y escribir
+                for r_excel, clave_ex, nombre_ex in sheet1_rows:
+                    if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
+                        ws1.cell(row=r_excel, column=5).value = fila_nombre
+                        ws1.cell(row=r_excel, column=6).value = fila_exp
+                        ws1.cell(row=r_excel, column=7).value = delegados_sum
+                        break
+
+        # Colocar formulas de suma en columna G
+        ws1.cell(row=229, column=7).value = "=SUM(G2:G228)"
+        ws2.cell(row=52, column=7).value = "=SUM(G2:G51)"
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        from datetime import datetime
+        filename = f"Resultado_SoloFSI_CGO_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        return Response(
+            output.read(),
+            headers={
+                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "mensaje": f"Error al generar excel FSI: {str(e)}"}), 500
+
+
+
 @app.route("/api/<any(cgr, cgo):sistema>/actas/<int:acta_id>/pdf", methods=["GET"])
 def descargar_pdf_acta(sistema: str, acta_id: int):
     sistema_upper = sistema.upper()

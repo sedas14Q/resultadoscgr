@@ -7,3 +7,6 @@ instance/
 .pytest_cache/
 .vscode/
 .idea/
+Reporte_Estadisticas_FSI_CGO.doc
+cgo_report_code/
+

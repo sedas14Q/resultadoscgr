@@ -1317,27 +1317,14 @@ def exportar_excel_fsi():
             nombre_val = ws2.cell(row=r, column=3).value
             sheet2_rows.append((r, clave_val, nombre_val))
 
-        # Limpiar columnas E(5), F(6) y G(7)
+        # Limpiar SOLAMENTE la columna G(7) (Delegados GANADOS)
         # Admon (filas 2-228)
         for r in range(2, 229):
-            ws1.cell(row=r, column=5).value = None
-            ws1.cell(row=r, column=6).value = None
             ws1.cell(row=r, column=7).value = None
 
         # Academ (filas 2-51)
         for r in range(2, 52):
-            ws2.cell(row=r, column=5).value = None
-            ws2.cell(row=r, column=6).value = None
             ws2.cell(row=r, column=7).value = None
-
-        # Headers de las columnas (fila 1)
-        ws1.cell(row=1, column=5).value = "Nombre de la Planilla"
-        ws1.cell(row=1, column=6).value = "Corrientes que la integran"
-        ws1.cell(row=1, column=7).value = "Delgados GANADOS"
-
-        ws2.cell(row=1, column=5).value = "Nombre de la Planilla"
-        ws2.cell(row=1, column=6).value = "Corrientes que la integran"
-        ws2.cell(row=1, column=7).value = "Delgados GANADOS"
 
         # Cruzar datos solo para FRENTE SINDICAL INCLUYENTE (FSI)
         for r_acta in resultados:
@@ -1348,43 +1335,32 @@ def exportar_excel_fsi():
             # Buscar si el Frente Sindical Incluyente participo en esta acta
             delegados_sum = 0
             planilla_encontrada = False
-            nombre_planilla_real = "FRENTE SINDICAL INCLUYENTE"
-            corrientes_en_acta = []
 
             for p in r_acta.get("planillas", []):
                 planilla_name = p.get("planilla", "")
                 norm_p = _normalizar_para_cruce(planilla_name)
+                norm_p_clean = norm_p.replace(".", "").replace("-", "").strip()
                 
-                # Coincidir con FSI
-                if norm_p == "frente sindical incluyente" or norm_p == "fsi" or "frente sindical" in norm_p:
+                # Coincidir con FSI (ej: Frente Sindical Incluyente, FSI, F.S.I.)
+                if "frente sindical" in norm_p_clean or "fsi" in norm_p_clean:
                     delegados_sum += _to_int(p.get("delegados_ganados"), 0)
                     planilla_encontrada = True
-                    nombre_planilla_real = planilla_name.strip()
-                    if p.get("expresion_politica"):
-                        corrientes_en_acta.append(p.get("expresion_politica").strip())
 
             if not planilla_encontrada:
                 continue
 
-            fila_nombre = nombre_planilla_real
-            fila_exp = " / ".join(list(dict.fromkeys(corrientes_en_acta)))
-
             es_academica = _es_acta_academica(r_acta)
 
             if es_academica:
-                # Hoja Academ: buscar fila y escribir
+                # Hoja Academ: buscar fila y escribir solo en columna G (7)
                 for r_excel, clave_ex, nombre_ex in sheet2_rows:
                     if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws2.cell(row=r_excel, column=5).value = fila_nombre
-                        ws2.cell(row=r_excel, column=6).value = fila_exp
                         ws2.cell(row=r_excel, column=7).value = delegados_sum
                         break
             else:
-                # Hoja Admon: buscar fila y escribir
+                # Hoja Admon: buscar fila y escribir solo en columna G (7)
                 for r_excel, clave_ex, nombre_ex in sheet1_rows:
                     if _es_coincidencia(str(clave_ex or ""), str(nombre_ex or ""), numero_db, nombre_db):
-                        ws1.cell(row=r_excel, column=5).value = fila_nombre
-                        ws1.cell(row=r_excel, column=6).value = fila_exp
                         ws1.cell(row=r_excel, column=7).value = delegados_sum
                         break
 

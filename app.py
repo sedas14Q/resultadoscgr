@@ -1339,10 +1339,16 @@ def exportar_excel_fsi():
             for p in r_acta.get("planillas", []):
                 planilla_name = p.get("planilla", "")
                 norm_p = _normalizar_para_cruce(planilla_name)
-                norm_p_clean = norm_p.replace(".", "").replace("-", "").strip()
+                norm_p_clean = norm_p.replace(".", "").replace("-", "").replace("(", "").replace(")", "").strip()
+                words = norm_p_clean.split()
                 
-                # Coincidir con FSI (ej: Frente Sindical Incluyente, FSI, F.S.I.)
-                if "frente sindical" in norm_p_clean or "fsi" in norm_p_clean:
+                # Coincidir con FSI (ej: Frente Sindical Incluyente, FSI, F.S.I., SI, PLANILLA SI)
+                if (
+                    "frente sindical" in norm_p_clean or 
+                    "fsi" in norm_p_clean or 
+                    "si" in words or
+                    norm_p_clean == "si"
+                ):
                     delegados_sum += _to_int(p.get("delegados_ganados"), 0)
                     planilla_encontrada = True
 

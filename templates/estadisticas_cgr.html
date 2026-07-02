@@ -411,7 +411,10 @@
                     chartPct.data.datasets[0].data = dataVotos;
                     chartPct.data.datasets[0].backgroundColor = colores;
                     if (chartPct.options.plugins && chartPct.options.plugins.legend) {
-                        chartPct.options.plugins.legend.display = planillas.length <= 10;
+                        chartPct.options.plugins.legend.display = true;
+                        if (!chartPct.options.plugins.legend.labels) chartPct.options.plugins.legend.labels = {};
+                        if (!chartPct.options.plugins.legend.labels.font) chartPct.options.plugins.legend.labels.font = {};
+                        chartPct.options.plugins.legend.labels.font.size = numPlanillas > 10 ? 9 : 11;
                     }
                     chartPct.update();
                 }
@@ -636,11 +639,14 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                display: planillas.length <= 10,
+                                display: true,
                                 position: 'bottom',
                                 labels: {
                                     color: 'var(--text)',
-                                    font: { family: 'IBM Plex Sans' },
+                                    font: {
+                                        size: planillas.length > 10 ? 9 : 11,
+                                        family: 'IBM Plex Sans'
+                                    },
                                     generateLabels: function(chart) {
                                         const original = Chart.defaults.plugins.legend.labels.generateLabels;
                                         const labels = original.call(this, chart);

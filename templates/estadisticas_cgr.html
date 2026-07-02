@@ -581,7 +581,19 @@
                                 position: 'bottom',
                                 labels: {
                                     color: 'var(--text)',
-                                    font: { family: 'IBM Plex Sans' }
+                                    font: { family: 'IBM Plex Sans' },
+                                    generateLabels: function(chart) {
+                                        const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                        const labels = original.call(this, chart);
+                                        labels.forEach(label => {
+                                            const dataset = chart.data.datasets[0];
+                                            const value = dataset.data[label.index];
+                                            if (value !== undefined) {
+                                                label.text = `${label.text}: ${value.toLocaleString()}`;
+                                            }
+                                        });
+                                        return labels;
+                                    }
                                 }
                             },
                             datalabels: {
@@ -628,7 +640,19 @@
                                 position: 'bottom',
                                 labels: {
                                     color: 'var(--text)',
-                                    font: { family: 'IBM Plex Sans' }
+                                    font: { family: 'IBM Plex Sans' },
+                                    generateLabels: function(chart) {
+                                        const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                        const labels = original.call(this, chart);
+                                        labels.forEach(label => {
+                                            const dataset = chart.data.datasets[0];
+                                            const value = dataset.data[label.index];
+                                            if (value !== undefined) {
+                                                label.text = `${label.text}: ${value.toLocaleString()}`;
+                                            }
+                                        });
+                                        return labels;
+                                    }
                                 }
                             },
                             datalabels: {

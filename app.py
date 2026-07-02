@@ -1496,11 +1496,51 @@ def exportar_excel_fsi():
 @app.route("/api/<any(cgr, cgo):sistema>/exportar-json-actas", methods=["GET"])
 def exportar_json_actas(sistema: str):
     """
-    Exporta todas las actas de un sistema en formato JSON.
+    Exporta todas las actas de un sistema en formato JSON con información simplificada del ganador.
     """
     try:
         sistema_upper = sistema.upper()
-        resultados = db.obtener_todas(sistema_upper)
+        raw_actas = db.obtener_todas(sistema_upper)
+        
+        resultados = []
+        for acta in raw_actas:
+            candidatos = normalizar_candidatos(acta.get("candidatos"))
+            resumen = normalizar_resumen(acta.get("resumen"))
+            planillas = agrupar_planillas(candidatos, resumen.get("votos_totales", 0))
+            
+            ganador_info = None
+            if planillas:
+                max_votos = max(p.get("votos", 0) for p in planillas)
+                ganadores = [p for p in planillas if p.get("votos", 0) == max_votos]
+                
+                if len(ganadores) > 1:
+                    nombres = " / ".join(g.get("planilla", "") for g in ganadores)
+                    ganador_info = {
+                        "planilla": f"Empate ({nombres})",
+                        "votos": max_votos,
+                        "delegados_ganados": sum(g.get("delegados_ganados", 0) for g in ganadores),
+                        "empate": True
+                    }
+                elif len(ganadores) == 1:
+                    g = ganadores[0]
+                    ganador_info = {
+                        "planilla": g.get("planilla"),
+                        "votos": g.get("votos"),
+                        "delegados_ganados": g.get("delegados_ganados"),
+                        "empate": False
+                    }
+            
+            resultados.append({
+                "id": acta.get("id"),
+                "numero": acta.get("numero"),
+                "nombre": acta.get("nombre"),
+                "fecha": acta.get("fecha"),
+                "capturista": acta.get("capturista"),
+                "candidatos": candidatos,
+                "ganador": ganador_info,
+                "resumen": resumen,
+                "sistema": acta.get("sistema"),
+            })
         
         import json
         json_data = json.dumps(resultados, indent=4, ensure_ascii=False)

@@ -1500,7 +1500,7 @@ def exportar_json_actas(sistema: str):
     """
     try:
         sistema_upper = sistema.upper()
-        resultados = _armar_resultados_dashboard(sistema_upper)
+        resultados = db.obtener_todas(sistema_upper)
         
         import json
         json_data = json.dumps(resultados, indent=4, ensure_ascii=False)

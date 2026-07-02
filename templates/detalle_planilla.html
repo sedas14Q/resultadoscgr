@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detalle de Planilla - {{ planilla_nombre }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/dashboard.css" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <style>
+        .back-btn-container {
+            margin-top: 20px;
+            margin-bottom: 25px;
+        }
+        .detail-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-top: 15px;
+        }
+        .header-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L22 20H2L12 2Z" fill="#ffe100" stroke="#000080" stroke-width="2.5" stroke-linejoin="round"/>
+                <text x="12" y="16.8" fill="#000080" font-family="'IBM Plex Sans', sans-serif" font-weight="900" font-size="7.5" text-anchor="middle" letter-spacing="-0.5">SI</text>
+            </svg>
+            <span>STUNAM</span>
+        </div>
+        <h1>Detalle de Planilla</h1>
+        <div class="badge">{{ dependencias | length }} dependencia{% if dependencias | length != 1 %}s{% endif %} ganada{% if dependencias | length != 1 %}s{% endif %}</div>
+    </header>
+
+    <div class="back-btn-container">
+        <a href="/{{ sistema }}/estadisticas" class="back-btn">
+            ← Regresar a Estadísticas
+        </a>
+    </div>
+
+    <main class="detail-grid">
+        <!-- Tarjeta de Detalles de la Planilla -->
+        <div class="table-card" style="max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+            <div class="stat-card-premium" style="border-left: 5px solid {% if target_stats.lugar == 1 %}#16a34a{% else %}#3b82f6{% endif %}; width: 100%; box-sizing: border-box; box-shadow: none; border-top: none; border-right: none; border-bottom: none; border-radius: 0; padding: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <span class="stat-card-label" style="font-size: 12px; font-weight: bold; color: {% if target_stats.lugar == 1 %}#16a34a{% else %}#3b82f6{% endif %};">
+                        PLANILLA {{ target_stats.lugar }}
+                    </span>
+                    <span style="background: {% if target_stats.lugar == 1 %}rgba(22, 163, 74, 0.1){% else %}rgba(59, 130, 246, 0.1){% endif %}; color: {% if target_stats.lugar == 1 %}#16a34a{% else %}#3b82f6{% endif %}; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
+                        {{ target_stats.lugar }} lugar
+                    </span>
+                </div>
+                <span class="stat-card-value" style="font-size: 32px; margin-bottom: 15px; font-weight: 700; color: #000080; word-break: break-word;">{{ target_stats.nombre }}</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px 20px; font-size: 14px; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 11px; font-family: var(--font-mono);">VOTOS TOTALES</span>
+                        <strong style="font-size: 18px; color: var(--text);">{{ target_stats.votos_formateados }}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 11px; font-family: var(--font-mono);">PORCENTAJE DE VOTOS</span>
+                        <strong style="font-size: 18px; color: var(--danger);">{{ target_stats.porcentaje_votacion }}%</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 11px; font-family: var(--font-mono);">DELEGADOS GANADOS</span>
+                        <strong style="font-size: 18px; color: var(--danger);">{{ target_stats.delegados_ganados }}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 11px; font-family: var(--font-mono);">DEPENDENCIAS GANADAS</span>
+                        <strong style="font-size: 18px; color: var(--text);">{{ target_stats.dependencias_ganadas }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Dependencias Ganadas -->
+        <div class="table-card">
+            <h3 style="margin-bottom: 15px; color: #000080;">Detalle de Dependencias Ganadas ({{ sistema_upper }})</h3>
+            <div style="overflow-x: auto;">
+                <table class="candidates-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Número</th>
+                            <th style="width: 38%;">Nombre de Dependencia</th>
+                            <th style="width: 22%;">Planilla</th>
+                            <th style="width: 10%; text-align: center;">Votos</th>
+                            <th style="width: 10%; text-align: center;">Porcentaje</th>
+                            <th style="width: 10%; text-align: center;">Delegados Ganados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dep in dependencias %}
+                        <tr>
+                            <td style="font-weight: 700; color: #000080; font-family: var(--font-mono);">{{ dep.numero }}</td>
+                            <td style="font-weight: 600; color: var(--text);">{{ dep.nombre }}</td>
+                            <td style="font-weight: 600; color: var(--text);">{{ planilla_nombre }}</td>
+                            <td style="text-align: center; font-family: var(--font-mono); font-weight: 800; color: var(--text);">{{ dep.votos_formateados }}</td>
+                            <td style="text-align: center; color: var(--danger); font-weight: 800;">{{ dep.porcentaje }}%</td>
+                            <td style="text-align: center; font-weight: 800; color: var(--text);">{{ dep.delegados_ganados }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted); font-weight: 500;">
+                                Esta planilla no ha ganado ninguna dependencia todavía.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

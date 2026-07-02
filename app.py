@@ -892,6 +892,105 @@ def estadisticas_cgo(area=None):
     return render_template("estadisticas_cgo.html", resultados=resultados, estadisticas=estadisticas, tipo_reporte=tipo_reporte)
 
 
+@app.route("/<any(cgr, cgo):sistema>/estadisticas/planilla/<path:planilla_nombre>")
+def detalle_planilla(sistema: str, planilla_nombre: str):
+    """
+    Pagina que muestra la informacion detallada de una planilla y sus dependencias ganadas.
+    """
+    sistema_upper = sistema.upper()
+    resultados = _armar_resultados_dashboard(sistema_upper)
+    
+    votacion_total_acumulada = 0
+    planillas_datos = {}
+    
+    for r in resultados:
+        # Ganador de esta dependencia
+        ganador_planilla = None
+        if not r.get("empate") and r.get("ganador"):
+            ganador_planilla = r["ganador"].get("planilla")
+            
+        for p in r.get("planillas") or []:
+            nombre = p.get("planilla") or "Sin planilla"
+            votos = _to_int(p.get("votos"), 0)
+            delegados = _to_int(p.get("delegados_ganados"), 0)
+            
+            votacion_total_acumulada += votos
+            
+            if nombre not in planillas_datos:
+                planillas_datos[nombre] = {
+                    "nombre": nombre,
+                    "votos": 0,
+                    "delegados_ganados": 0,
+                    "dependencias_ganadas": 0,
+                }
+            planillas_datos[nombre]["votos"] += votos
+            planillas_datos[nombre]["delegados_ganados"] += delegados
+            if ganador_planilla and nombre == ganador_planilla:
+                planillas_datos[nombre]["dependencias_ganadas"] += 1
+                
+    lista_planillas = list(planillas_datos.values())
+    lista_planillas.sort(key=lambda x: x["votos"], reverse=True)
+    
+    target_stats = None
+    lugar = 0
+    for idx, p in enumerate(lista_planillas):
+        if p["nombre"] == planilla_nombre:
+            target_stats = p
+            lugar = idx + 1
+            break
+            
+    if not target_stats:
+        target_stats = {
+            "nombre": planilla_nombre,
+            "votos": 0,
+            "delegados_ganados": 0,
+            "dependencias_ganadas": 0,
+            "porcentaje_votacion": 0.0,
+            "votos_formateados": "0",
+            "lugar": "-"
+        }
+    else:
+        if votacion_total_acumulada > 0:
+            target_stats["porcentaje_votacion"] = round((target_stats["votos"] / votacion_total_acumulada) * 100, 2)
+        else:
+            target_stats["porcentaje_votacion"] = 0.0
+        target_stats["votos_formateados"] = f"{target_stats['votos']:,}"
+        target_stats["lugar"] = lugar
+        
+    dependencias_ganadas = []
+    for r in resultados:
+        ganador_planilla = None
+        if not r.get("empate") and r.get("ganador"):
+            ganador_planilla = r["ganador"].get("planilla")
+            
+        if ganador_planilla == planilla_nombre:
+            target_p = None
+            for p in r.get("planillas") or []:
+                if p.get("planilla") == planilla_nombre:
+                    target_p = p
+                    break
+            if target_p:
+                dependencias_ganadas.append({
+                    "numero": r.get("numero"),
+                    "nombre": r.get("nombre"),
+                    "votos": target_p.get("votos"),
+                    "votos_formateados": f"{target_p.get('votos'):,}",
+                    "porcentaje": target_p.get("porcentaje"),
+                    "delegados_ganados": target_p.get("delegados_ganados"),
+                })
+                
+    dependencias_ganadas.sort(key=lambda x: _to_int(x["numero"], 999999))
+    
+    return render_template(
+        "detalle_planilla.html",
+        sistema=sistema,
+        sistema_upper=sistema_upper,
+        planilla_nombre=planilla_nombre,
+        target_stats=target_stats,
+        dependencias=dependencias_ganadas
+    )
+
+
 @app.route("/cgr/acta/<int:acta_id>", methods=["GET"])
 def detalle_acta_cgr(acta_id: int):
     """
@@ -1391,6 +1490,34 @@ def exportar_excel_fsi():
         )
     except Exception as e:
         return jsonify({"status": "error", "mensaje": f"Error al generar excel FSI: {str(e)}"}), 500
+
+
+
+@app.route("/api/<any(cgr, cgo):sistema>/exportar-json-actas", methods=["GET"])
+def exportar_json_actas(sistema: str):
+    """
+    Exporta todas las actas de un sistema en formato JSON.
+    """
+    try:
+        sistema_upper = sistema.upper()
+        resultados = _armar_resultados_dashboard(sistema_upper)
+        
+        import json
+        json_data = json.dumps(resultados, indent=4, ensure_ascii=False)
+        
+        from datetime import datetime
+        filename = f"Actas_{sistema_upper}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        return Response(
+            json_data,
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "mensaje": f"Error al exportar JSON: {str(e)}"}), 500
 
 
 

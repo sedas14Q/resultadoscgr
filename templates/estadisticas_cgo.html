@@ -14,8 +14,17 @@
     </title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <style>
+        .chart-scroll-wrapper {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -56,6 +65,9 @@
                 </a>
                 <a href="/api/cgo/exportar-excel-fsi" class="back-btn" id="btn-export-fsi">
                     📊 EXCEL solo FSI
+                </a>
+                <a href="/api/cgo/exportar-json-actas" class="back-btn" id="btn-export-json">
+                    Descargar JSON de las actas
                 </a>
             </div>
         </div>
@@ -106,35 +118,37 @@
             <h3>Top Dos Planillas (Líderes de la Elección - Backend)</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 15px;">
                 {% for planilla in estadisticas.top_dos_planillas %}
-                <div class="stat-card-premium" style="border-left: 5px solid {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %};">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                        <span class="stat-card-label" style="font-size: 12px; font-weight: bold; color: {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %};">
-                            PLANILLA {{ loop.index }}
-                        </span>
-                        <span style="background: {% if loop.index == 1 %}rgba(22, 163, 74, 0.1){% else %}rgba(59, 130, 246, 0.1){% endif %}; color: {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %}; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
-                            {{ loop.index }} lugar
-                        </span>
+                <a href="/cgo/estadisticas/planilla/{{ planilla.nombre }}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="stat-card-premium" style="border-left: 5px solid {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %}; cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <span class="stat-card-label" style="font-size: 12px; font-weight: bold; color: {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %};">
+                                PLANILLA {{ loop.index }}
+                            </span>
+                            <span style="background: {% if loop.index == 1 %}rgba(22, 163, 74, 0.1){% else %}rgba(59, 130, 246, 0.1){% endif %}; color: {% if loop.index == 1 %}#16a34a{% else %}#3b82f6{% endif %}; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
+                                {{ loop.index }} lugar
+                            </span>
+                        </div>
+                        <span class="stat-card-value" style="font-size: 24px; margin-bottom: 12px;">{{ planilla.nombre }}</span>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+                            <div>
+                                <span style="color: var(--text-muted); display: block; font-size: 11px;">VOTOS TOTALES</span>
+                                <strong style="font-size: 15px; color: var(--text);">{{ planilla.votos_formateados }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--text-muted); display: block; font-size: 11px;">PORCENTAJE</span>
+                                <strong style="font-size: 15px; color: var(--danger);">{{ planilla.porcentaje_votacion }}%</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--text-muted); display: block; font-size: 11px;">DELEGADOS GANADOS</span>
+                                <strong style="font-size: 15px; color: var(--danger);">{{ planilla.delegados_ganados }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--text-muted); display: block; font-size: 11px;">DEPENDENCIAS GANADAS</span>
+                                <strong style="font-size: 15px; color: var(--text);">{{ planilla.dependencias_ganadas }}</strong>
+                            </div>
+                        </div>
                     </div>
-                    <span class="stat-card-value" style="font-size: 24px; margin-bottom: 12px;">{{ planilla.nombre }}</span>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
-                        <div>
-                            <span style="color: var(--text-muted); display: block; font-size: 11px;">VOTOS TOTALES</span>
-                            <strong style="font-size: 15px; color: var(--text);">{{ planilla.votos_formateados }}</strong>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-muted); display: block; font-size: 11px;">PORCENTAJE</span>
-                            <strong style="font-size: 15px; color: var(--danger);">{{ planilla.porcentaje_votacion }}%</strong>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-muted); display: block; font-size: 11px;">DELEGADOS GANADOS</span>
-                            <strong style="font-size: 15px; color: var(--danger);">{{ planilla.delegados_ganados }}</strong>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-muted); display: block; font-size: 11px;">DEPENDENCIAS GANADAS</span>
-                            <strong style="font-size: 15px; color: var(--text);">{{ planilla.dependencias_ganadas }}</strong>
-                        </div>
-                    </div>
-                </div>
+                </a>
                 {% else %}
                 <div style="color: var(--text-muted); grid-column: span 2; text-align: center; padding: 20px;">
                     No hay suficientes datos de planillas registrados aún.
@@ -147,13 +161,13 @@
         <div class="charts-container">
             <div class="chart-box-card">
                 <h4>Votos Totales Acumulados por Planilla</h4>
-                <div class="chart-wrapper">
+                <div class="chart-scroll-wrapper">
                     <canvas id="chart-acumulado-votos"></canvas>
                 </div>
             </div>
             <div class="chart-box-card">
                 <h4>Delegados Totales Ganados por Planilla</h4>
-                <div class="chart-wrapper">
+                <div class="chart-scroll-wrapper">
                     <canvas id="chart-acumulado-delegados"></canvas>
                 </div>
             </div>
@@ -363,11 +377,24 @@
                 const dataDelegados = planillas.map(p => currentDelegados[p]);
                 const colores = planillas.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
 
+                // Ajustar altura dinámica de los lienzos según el número de planillas
+                const numPlanillas = planillas.length;
+                const dynamicHeight = Math.max(300, numPlanillas * 35 + 30);
+                
+                const canvasVotos = document.getElementById("chart-acumulado-votos");
+                if (canvasVotos) canvasVotos.style.height = dynamicHeight + "px";
+                const canvasDelegados = document.getElementById("chart-acumulado-delegados");
+                if (canvasDelegados) canvasDelegados.style.height = dynamicHeight + "px";
+
                 // Actualizar Gráfico 1: Votos
                 if (chartVotos) {
                     chartVotos.data.labels = planillas;
                     chartVotos.data.datasets[0].data = dataVotos;
                     chartVotos.data.datasets[0].backgroundColor = colores;
+                    if (chartVotos.options.scales && chartVotos.options.scales.x) {
+                        chartVotos.options.scales.x.suggestedMax = Math.max(...dataVotos, 10) * 1.15;
+                    }
+                    chartVotos.resize();
                     chartVotos.update();
                 }
 
@@ -376,6 +403,10 @@
                     chartDelegados.data.labels = planillas;
                     chartDelegados.data.datasets[0].data = dataDelegados;
                     chartDelegados.data.datasets[0].backgroundColor = colores;
+                    if (chartDelegados.options.scales && chartDelegados.options.scales.x) {
+                        chartDelegados.options.scales.x.suggestedMax = Math.max(...dataDelegados, 10) * 1.15;
+                    }
+                    chartDelegados.resize();
                     chartDelegados.update();
                 }
 
@@ -384,6 +415,9 @@
                     chartPct.data.labels = planillas;
                     chartPct.data.datasets[0].data = dataVotos;
                     chartPct.data.datasets[0].backgroundColor = colores;
+                    if (chartPct.options.plugins && chartPct.options.plugins.legend) {
+                        chartPct.options.plugins.legend.display = planillas.length <= 10;
+                    }
                     chartPct.update();
                 }
 
@@ -421,6 +455,16 @@
             const dataDelegados = planillas.map(p => currentDelegados[p]);
             const colores = planillas.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
 
+            // Registrar plugin de etiquetas de datos
+            Chart.register(ChartDataLabels);
+
+            // Ajustar altura dinámica inicial
+            const initialHeight = Math.max(300, planillas.length * 35 + 30);
+            const canvasVotos = document.getElementById("chart-acumulado-votos");
+            if (canvasVotos) canvasVotos.style.height = initialHeight + "px";
+            const canvasDelegados = document.getElementById("chart-acumulado-delegados");
+            if (canvasDelegados) canvasDelegados.style.height = initialHeight + "px";
+
             const ctxVotos = document.getElementById("chart-acumulado-votos");
             if (ctxVotos) {
                 chartVotos = new Chart(ctxVotos, {
@@ -434,10 +478,43 @@
                         }]
                     },
                     options: {
+                        indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'right',
+                                color: '#000080',
+                                font: {
+                                    weight: 'bold',
+                                    size: 11,
+                                    family: 'IBM Plex Sans'
+                                },
+                                formatter: (value) => {
+                                    return value > 0 ? value.toLocaleString() : '0';
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                suggestedMax: Math.max(...dataVotos, 10) * 1.15,
+                                grid: { color: 'var(--border)' },
+                                ticks: { color: 'var(--text-muted)' }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: 'var(--text)',
+                                    font: {
+                                        weight: 'bold',
+                                        family: 'IBM Plex Sans'
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -455,10 +532,43 @@
                         }]
                     },
                     options: {
+                        indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'right',
+                                color: '#000080',
+                                font: {
+                                    weight: 'bold',
+                                    size: 11,
+                                    family: 'IBM Plex Sans'
+                                },
+                                formatter: (value) => {
+                                    return value > 0 ? value.toLocaleString() : '0';
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                suggestedMax: Math.max(...dataDelegados, 10) * 1.15,
+                                grid: { color: 'var(--border)' },
+                                ticks: { color: 'var(--text-muted)' }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: 'var(--text)',
+                                    font: {
+                                        weight: 'bold',
+                                        family: 'IBM Plex Sans'
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -478,7 +588,33 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } }
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: 'var(--text)',
+                                    font: { family: 'IBM Plex Sans' }
+                                }
+                            },
+                            datalabels: {
+                                color: '#fff',
+                                textShadowColor: '#000',
+                                textShadowBlur: 4,
+                                font: {
+                                    weight: 'bold',
+                                    size: 11,
+                                    family: 'IBM Plex Sans'
+                                },
+                                formatter: (value, ctx) => {
+                                    let sum = 0;
+                                    let dataArr = ctx.chart.data.datasets[0].data;
+                                    dataArr.forEach(data => { sum += data; });
+                                    if (sum === 0) return '';
+                                    let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                    return value > 0 ? `${value.toLocaleString()}\n(${percentage})` : '';
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -498,7 +634,35 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } }
+                        plugins: {
+                            legend: {
+                                display: planillas.length <= 10,
+                                position: 'bottom',
+                                labels: {
+                                    color: 'var(--text)',
+                                    font: { family: 'IBM Plex Sans' }
+                                }
+                            },
+                            datalabels: {
+                                color: '#fff',
+                                textShadowColor: '#000',
+                                textShadowBlur: 4,
+                                font: {
+                                    weight: 'bold',
+                                    size: 11,
+                                    family: 'IBM Plex Sans'
+                                },
+                                formatter: (value, ctx) => {
+                                    let sum = 0;
+                                    let dataArr = ctx.chart.data.datasets[0].data;
+                                    dataArr.forEach(data => { sum += data; });
+                                    if (sum === 0) return '';
+                                    let percentage = (value * 100 / sum);
+                                    if (percentage < 3) return ''; // Ocultar etiquetas de segmentos diminutos
+                                    return `${ctx.chart.data.labels[ctx.dataIndex]}\n${percentage.toFixed(1)}%`;
+                                }
+                            }
+                        }
                     }
                 });
             }

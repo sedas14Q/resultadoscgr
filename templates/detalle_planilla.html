@@ -40,13 +40,13 @@
         <div class="badge">{{ dependencias | length }} dependencia{% if dependencias | length != 1 %}s{% endif %} ganada{% if dependencias | length != 1 %}s{% endif %}</div>
     </header>
 
-    <div class="back-btn-container">
+    <div class="back-btn-container" style="max-width: 1100px; margin: 20px auto 25px; padding: 0 24px;">
         <a href="/{{ sistema }}/estadisticas" class="back-btn">
             ← Regresar a Estadísticas
         </a>
     </div>
 
-    <main class="detail-grid">
+    <main class="detail-grid" style="max-width: 1100px; margin: 0 auto 50px; padding: 0 24px;">
         <!-- Tarjeta de Detalles de la Planilla -->
         <div class="table-card" style="max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box;">
             <div class="stat-card-premium" style="border-left: 5px solid {% if target_stats.lugar == 1 %}#16a34a{% else %}#3b82f6{% endif %}; width: 100%; box-sizing: border-box; box-shadow: none; border-top: none; border-right: none; border-bottom: none; border-radius: 0; padding: 0;">

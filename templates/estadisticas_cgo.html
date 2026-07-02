@@ -17,14 +17,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <style>
-        .chart-scroll-wrapper {
-            flex: 1;
-            position: relative;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-    </style>
 </head>
 <body>
     <header>
@@ -161,13 +153,13 @@
         <div class="charts-container">
             <div class="chart-box-card">
                 <h4>Votos Totales Acumulados por Planilla</h4>
-                <div class="chart-scroll-wrapper">
+                <div class="chart-wrapper">
                     <canvas id="chart-acumulado-votos"></canvas>
                 </div>
             </div>
             <div class="chart-box-card">
                 <h4>Delegados Totales Ganados por Planilla</h4>
-                <div class="chart-scroll-wrapper">
+                <div class="chart-wrapper">
                     <canvas id="chart-acumulado-delegados"></canvas>
                 </div>
             </div>
@@ -377,14 +369,9 @@
                 const dataDelegados = planillas.map(p => currentDelegados[p]);
                 const colores = planillas.map((_, idx) => ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][idx % 6]);
 
-                // Ajustar altura dinámica de los lienzos según el número de planillas
+                // Ajustar tamaños de fuente dinámicamente según el número de planillas
                 const numPlanillas = planillas.length;
-                const dynamicHeight = Math.max(300, numPlanillas * 35 + 30);
-                
-                const canvasVotos = document.getElementById("chart-acumulado-votos");
-                if (canvasVotos) canvasVotos.style.height = dynamicHeight + "px";
-                const canvasDelegados = document.getElementById("chart-acumulado-delegados");
-                if (canvasDelegados) canvasDelegados.style.height = dynamicHeight + "px";
+                const dynamicFontSize = numPlanillas > 15 ? 8 : (numPlanillas > 8 ? 10 : 12);
 
                 // Actualizar Gráfico 1: Votos
                 if (chartVotos) {
@@ -394,7 +381,14 @@
                     if (chartVotos.options.scales && chartVotos.options.scales.x) {
                         chartVotos.options.scales.x.suggestedMax = Math.max(...dataVotos, 10) * 1.15;
                     }
-                    chartVotos.resize();
+                    if (chartVotos.options.scales && chartVotos.options.scales.y && chartVotos.options.scales.y.ticks) {
+                        if (!chartVotos.options.scales.y.ticks.font) chartVotos.options.scales.y.ticks.font = {};
+                        chartVotos.options.scales.y.ticks.font.size = dynamicFontSize;
+                    }
+                    if (chartVotos.options.plugins && chartVotos.options.plugins.datalabels) {
+                        if (!chartVotos.options.plugins.datalabels.font) chartVotos.options.plugins.datalabels.font = {};
+                        chartVotos.options.plugins.datalabels.font.size = dynamicFontSize;
+                    }
                     chartVotos.update();
                 }
 
@@ -406,7 +400,14 @@
                     if (chartDelegados.options.scales && chartDelegados.options.scales.x) {
                         chartDelegados.options.scales.x.suggestedMax = Math.max(...dataDelegados, 10) * 1.15;
                     }
-                    chartDelegados.resize();
+                    if (chartDelegados.options.scales && chartDelegados.options.scales.y && chartDelegados.options.scales.y.ticks) {
+                        if (!chartDelegados.options.scales.y.ticks.font) chartDelegados.options.scales.y.ticks.font = {};
+                        chartDelegados.options.scales.y.ticks.font.size = dynamicFontSize;
+                    }
+                    if (chartDelegados.options.plugins && chartDelegados.options.plugins.datalabels) {
+                        if (!chartDelegados.options.plugins.datalabels.font) chartDelegados.options.plugins.datalabels.font = {};
+                        chartDelegados.options.plugins.datalabels.font.size = dynamicFontSize;
+                    }
                     chartDelegados.update();
                 }
 
@@ -457,13 +458,6 @@
 
             // Registrar plugin de etiquetas de datos
             Chart.register(ChartDataLabels);
-
-            // Ajustar altura dinámica inicial
-            const initialHeight = Math.max(300, planillas.length * 35 + 30);
-            const canvasVotos = document.getElementById("chart-acumulado-votos");
-            if (canvasVotos) canvasVotos.style.height = initialHeight + "px";
-            const canvasDelegados = document.getElementById("chart-acumulado-delegados");
-            if (canvasDelegados) canvasDelegados.style.height = initialHeight + "px";
 
             const ctxVotos = document.getElementById("chart-acumulado-votos");
             if (ctxVotos) {

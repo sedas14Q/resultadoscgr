@@ -592,16 +592,23 @@
                                     color: 'var(--text)',
                                     font: { family: 'IBM Plex Sans' },
                                     generateLabels: function(chart) {
-                                        const original = Chart.defaults.plugins.legend.labels.generateLabels;
-                                        const labels = original.call(this, chart);
-                                        labels.forEach(label => {
-                                            const dataset = chart.data.datasets[0];
-                                            const value = dataset.data[label.index];
-                                            if (value !== undefined) {
-                                                label.text = `${label.text}: ${value.toLocaleString()}`;
-                                            }
-                                        });
-                                        return labels;
+                                        const data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            const dataset = data.datasets[0];
+                                            return data.labels.map((label, i) => {
+                                                const value = dataset.data[i];
+                                                const formattedValue = value !== undefined ? value.toLocaleString() : '0';
+                                                return {
+                                                    text: `${label}: ${formattedValue}`,
+                                                    fillStyle: dataset.backgroundColor[i],
+                                                    strokeStyle: dataset.backgroundColor[i],
+                                                    lineWidth: 1,
+                                                    hidden: !chart.getDataVisibility(i),
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                        return [];
                                     }
                                 }
                             },
@@ -654,16 +661,23 @@
                                         family: 'IBM Plex Sans'
                                     },
                                     generateLabels: function(chart) {
-                                        const original = Chart.defaults.plugins.legend.labels.generateLabels;
-                                        const labels = original.call(this, chart);
-                                        labels.forEach(label => {
-                                            const dataset = chart.data.datasets[0];
-                                            const value = dataset.data[label.index];
-                                            if (value !== undefined) {
-                                                label.text = `${label.text}: ${value.toLocaleString()}`;
-                                            }
-                                        });
-                                        return labels;
+                                        const data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            const dataset = data.datasets[0];
+                                            return data.labels.map((label, i) => {
+                                                const value = dataset.data[i];
+                                                const formattedValue = value !== undefined ? value.toLocaleString() : '0';
+                                                return {
+                                                    text: `${label}: ${formattedValue}`,
+                                                    fillStyle: dataset.backgroundColor[i],
+                                                    strokeStyle: dataset.backgroundColor[i],
+                                                    lineWidth: 1,
+                                                    hidden: !chart.getDataVisibility(i),
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                        return [];
                                     }
                                 }
                             },
